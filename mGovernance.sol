@@ -11,6 +11,7 @@ contract Governance {
     constructor(address _token) {
         require(_token != address(0), "Invalid LIB Token address");
         libToken = IERC20(_token);
+        threshold = 5;
     }
 
     Proposal.ArticleProposal[] public proposals;
@@ -30,37 +31,14 @@ contract Governance {
 
     mapping(address => Vote) public votes;
 
-    IERC20 public libToken; // Add an instance of your LIB token contract
+    IERC20 public libToken; // Add an instance of LIB token contract
 
     modifier onlyTokenHolder() {
         require(
             libToken.balanceOf(msg.sender) > 0,
-            "You must hold LIB tokens to vote"
+            "You must hold $LIB tokens to vote"
         );
         _;
-    }
-
-    function delegate(address delegatee) external onlyTokenHolder {
-        address delegator = msg.sender;
-        uint256 currentVotingPower = votes[delegator].weight;
-
-        require(delegatee != address(0), "Invalid delegatee address");
-
-        // If already delegated, subtract previous vote weight from delegatee's voting power
-        if (
-            votes[delegator].voted && votes[delegator].delegatee != address(0)
-        ) {
-            votes[votes[delegator].delegatee].weight -= currentVotingPower;
-
-            // Reset delegator's previous delegation
-            delete votes[delegator];
-        }
-
-        // Add current vote weight to new delegatee's voting power
-        votes[delegatee].weight += currentVotingPower;
-
-        // Set new delegation for delegator
-        votes[delegator] = Vote(currentVotingPower, true, delegatee);
     }
 
     function vote(
