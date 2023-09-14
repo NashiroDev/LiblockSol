@@ -47,7 +47,7 @@ contract Liblock is
     /**
      * @dev Delegate votes from 'delegator' to `delegatee`.
      */
-    function delegate(address delegator, address delegatee) public virtual {
+    function delegateFrom(address delegator, address delegatee) public virtual {
         _delegate(delegator, delegatee);
     }
 }

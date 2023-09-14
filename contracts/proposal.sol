@@ -4,6 +4,11 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Proposal {
+    constructor(address _token) {
+        require(_token != address(0), "Invalid LIB Token address");
+        libToken = IERC20(_token);
+    }
+
     enum Vote {
         NO,
         YES,
@@ -23,11 +28,21 @@ contract Proposal {
 
     ArticleProposal[] internal proposals;
 
-    uint256 private articleIDCounter;
+    uint256 public articleIDCounter;
+
+    IERC20 public libToken;
 
     event ProposalUpdated(uint256 indexed proposalId, uint256 newVoteCount);
 
     event ProposalCreated(uint256 indexed proposalId);
+
+    modifier onlyTokenHolder() {
+        require(
+            libToken.balanceOf(msg.sender) > 0,
+            "You must hold $LIB tokens to vote"
+        );
+        _;
+    }
 
     /**
      * @dev Create a new proposal with given title and content.
@@ -35,7 +50,7 @@ contract Proposal {
      * @param _content The content or details of the proposal.
      */
     function createProposal(string calldata _title, string calldata _content)
-        external
+        external onlyTokenHolder
     {
         require(
             bytes(_title).length > 0 && bytes(_content).length > 0,
