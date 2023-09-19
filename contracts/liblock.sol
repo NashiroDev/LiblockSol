@@ -43,11 +43,4 @@ contract Liblock is
     {
         super._burn(account, amount);
     }
-
-    /**
-     * @dev Delegate votes from 'delegator' to `delegatee`.
-     */
-    function delegate(address delegator, address delegatee) public virtual {
-        _delegate(delegator, delegatee);
-    }
 }
