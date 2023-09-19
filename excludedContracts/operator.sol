@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "./liblock.sol";
+import "../contracts/liblock.sol";
 import "./mGovernance.sol";
 import "./proposal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";

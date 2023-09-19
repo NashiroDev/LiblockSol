@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./proposal.sol";
-import "./liblock.sol";
+import "../contracts/liblock.sol";
 
 contract Governance {
     constructor(address _token) {
