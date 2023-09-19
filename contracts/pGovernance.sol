@@ -4,18 +4,19 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./liblock.sol";
 
 contract Governance {
-    constructor(address _token) {
-        require(_token != address(0), "Invalid LIB Token address");
-        libToken = IERC20(_token);
+    constructor(address _libToken) {
+        require(_libToken != address(0), "Invalid LIB Token address");
+        libToken = Liblock(_libToken);
         threshold = 5;
     }
 
     using SignatureChecker for bytes32;
     using ECDSA for bytes32;
 
-    IERC20 public libToken;
+    Liblock public libToken;
     uint256 internal threshold;
 
     struct Proposal {
@@ -25,7 +26,6 @@ contract Governance {
         address creator;
         bool executed;
         bool accepted;
-        uint256 threshold;
         uint256 yesVotes;
         uint256 noVotes;
         uint256 abstainVotes;
@@ -35,12 +35,11 @@ contract Governance {
     mapping(uint256 => Proposal) public proposals;
     uint256 public proposalCount;
 
-    mapping(address => uint256) public delegatedBalances;
     mapping(address => mapping(uint256 => bool)) public voted;
 
     modifier hasEnoughDelegatedTokens() {
         require(
-            delegatedBalances[msg.sender] > 100,
+            libToken.getVotes(msg.sender) > 100,
             "Insufficient delegated tokens"
         );
         _;
@@ -52,7 +51,7 @@ contract Governance {
             "You must hold $LIB tokens to vote"
         );
         require(
-            delegatedBalances[msg.sender] > 0,
+            libToken.getVotes(msg.sender) > 0,
             "Insufficient delegated tokens"
         );
         _;
@@ -61,7 +60,7 @@ contract Governance {
     function createProposal(
         string calldata _title,
         string calldata _description
-    ) public hasEnoughDelegatedTokens {
+    ) external hasEnoughDelegatedTokens {
         require(
             bytes(_title).length > 0 && bytes(_description).length > 0,
             "Invalid proposal details"
@@ -74,7 +73,6 @@ contract Governance {
             msg.sender,
             false,
             false,
-            threshold,
             0,
             0,
             0,
@@ -82,10 +80,44 @@ contract Governance {
         );
     }
 
+    function getProposal(
+        uint256 _proposalId
+    )
+        public
+        view
+        returns (
+            uint256 id,
+            string memory title,
+            string memory description,
+            address creator,
+            bool executed,
+            bool accepted,
+            uint256 yesVotes,
+            uint256 noVotes,
+            uint256 abstainVotes,
+            uint256 votingEndTime
+        )
+    {
+        Proposal storage proposal = proposals[_proposalId];
+        return (
+            proposal.id,
+            proposal.title,
+            proposal.description,
+            proposal.creator,
+            proposal.executed,
+            proposal.accepted,
+            proposal.yesVotes,
+            proposal.noVotes,
+            proposal.abstainVotes,
+            proposal.votingEndTime
+        );
+    }
+
     function vote(
         uint256 _proposalId,
-        string memory _vote
-    ) public onlyTokenHolderDelegatee {
+        string memory _vote,
+        bytes memory signature
+    ) external onlyTokenHolderDelegatee {
         require(
             !voted[msg.sender][_proposalId],
             "Already voted for this proposal"
@@ -98,6 +130,16 @@ contract Governance {
         }
 
         require(!proposal.executed, "Proposal already executed");
+
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(msg.sender, _proposalId, _vote)
+        );
+
+        require(
+            messageHash.toEthSignedMessageHash().recover(signature) ==
+                msg.sender,
+            "Invalid signature"
+        );
 
         if (
             keccak256(abi.encodePacked(_vote)) ==
@@ -141,21 +183,17 @@ contract Governance {
             proposal.noVotes +
             proposal.abstainVotes;
 
-        if (block.timestamp >= proposal.votingEndTime) {
-            if (totalVotes >= (threshold * libToken.totalSupply()) / 100) {
-                if (
-                    proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2
-                ) {
-                    proposal.executed = true;
-                    proposal.accepted = true;
-                } else {
-                    proposal.executed = true;
-                    proposal.accepted = false;
-                }
+        if (totalVotes >= (threshold * libToken.totalSupply()) / 100) {
+            if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
+                proposal.executed = true;
+                proposal.accepted = true;
             } else {
                 proposal.executed = true;
                 proposal.accepted = false;
             }
+        } else {
+            proposal.executed = true;
+            proposal.accepted = false;
         }
     }
 }
