@@ -115,8 +115,7 @@ contract Governance {
 
     function vote(
         uint256 _proposalId,
-        string memory _vote,
-        bytes memory signature
+        string memory _vote
     ) external onlyTokenHolderDelegatee {
         require(
             !voted[msg.sender][_proposalId],
@@ -130,16 +129,6 @@ contract Governance {
         }
 
         require(!proposal.executed, "Proposal already executed");
-
-        bytes32 messageHash = keccak256(
-            abi.encodePacked(msg.sender, _proposalId, _vote)
-        );
-
-        require(
-            messageHash.toEthSignedMessageHash().recover(signature) ==
-                msg.sender,
-            "Invalid signature"
-        );
 
         if (
             keccak256(abi.encodePacked(_vote)) ==
