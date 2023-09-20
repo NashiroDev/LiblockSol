@@ -16,7 +16,7 @@ contract Liblock is
 {
     constructor() ERC20("Liblock", "LIB") ERC20Permit("Liblock") {
         _mint(msg.sender, 1000 * 10**decimals());
-        _mint(address(this), 64999000 * 10**decimals());
+        _mint(address(this), 74999000 * 10**decimals());
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 

@@ -2,8 +2,6 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./liblock.sol";
 
 contract Governance {
@@ -12,9 +10,6 @@ contract Governance {
         libToken = Liblock(_libToken);
         threshold = 5;
     }
-
-    using SignatureChecker for bytes32;
-    using ECDSA for bytes32;
 
     Liblock public libToken;
     uint256 internal threshold;
@@ -29,6 +24,7 @@ contract Governance {
         uint256 yesVotes;
         uint256 noVotes;
         uint256 abstainVotes;
+        uint256 uniqueVotes;
         uint256 votingEndTime;
     }
 
@@ -76,6 +72,7 @@ contract Governance {
             0,
             0,
             0,
+            0,
             block.timestamp + 7 days
         );
     }
@@ -95,6 +92,7 @@ contract Governance {
             uint256 yesVotes,
             uint256 noVotes,
             uint256 abstainVotes,
+            uint256 uniqueVotes,
             uint256 votingEndTime
         )
     {
@@ -109,6 +107,7 @@ contract Governance {
             proposal.yesVotes,
             proposal.noVotes,
             proposal.abstainVotes,
+            proposal.uniqueVotes,
             proposal.votingEndTime
         );
     }
@@ -128,26 +127,29 @@ contract Governance {
             checkProposalOutcome(_proposalId);
         }
 
+        uint256 votePower = libToken.getVotes(msg.sender);
+
         require(!proposal.executed, "Proposal already executed");
+
+        voted[msg.sender][_proposalId] = true;
+        proposal.uniqueVotes++;
 
         if (
             keccak256(abi.encodePacked(_vote)) ==
             keccak256(abi.encodePacked("yes"))
         ) {
-            proposal.yesVotes++;
+            proposal.yesVotes += votePower;
         } else if (
             keccak256(abi.encodePacked(_vote)) ==
             keccak256(abi.encodePacked("no"))
         ) {
-            proposal.noVotes++;
+            proposal.noVotes += votePower;
         } else if (
             keccak256(abi.encodePacked(_vote)) ==
             keccak256(abi.encodePacked("abstain"))
         ) {
-            proposal.abstainVotes++;
+            proposal.abstainVotes += votePower;
         }
-
-        voted[msg.sender][_proposalId] = true;
     }
 
     function calculateProgression(
