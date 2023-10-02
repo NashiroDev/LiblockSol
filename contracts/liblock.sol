@@ -18,6 +18,15 @@ contract Liblock is
     constructor() ERC20("Liblock", "LIB") ERC20Permit("Liblock") {
         _mint(address(this), 75000000 * 10**decimals());
         setAdmin(msg.sender);
+        balancingCount = 0;
+        balancing[balancingCount] = Balancing(
+            balancingCount,
+            block.number,
+            0,
+            block.timestamp,
+            block.timestamp + 30.4 days,
+            0
+        );
         dataFeed = AggregatorV3Interface(
             0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41
         );
@@ -46,6 +55,18 @@ contract Liblock is
     }
 
     address public admin;
+    uint256 public balancingCount;
+
+    struct Balancing {
+        uint256 id;
+        uint256 blockHeight;
+        int currentPrice;
+        uint256 currentTimestamp;
+        uint256 nextTimestamp;
+        uint16 lastMonthChange;
+    }
+
+    mapping(uint256 => Balancing) public balancing;
 
     modifier onlyAdmin(){
         require(isAdmin(msg.sender));
@@ -69,14 +90,31 @@ contract Liblock is
         _mint(msg.sender, amount);
     }
 
-    function getLastData() public view returns (uint80, int, uint, uint, uint80) {
+    // To Finish
+    function alterPrice() public {
+        // require(block.timestamp >= balancing[balancingCount].nextTimestamp, "Not time yet");
+        balancingCount++;
         (
-            uint80 roundID,
+            /* uint80 roundID */,
             int answer,
-            uint startedAt,
+            /* uint startedAt */,
             uint timeStamp,
-            uint80 answeredInRound
+            /* uint80 answeredInRound */
         ) = dataFeed.latestRoundData();
-        return (roundID, answer, startedAt, timeStamp, answeredInRound);
+
+
+        balancing[balancingCount] = Balancing(
+            balancingCount,
+            block.number,
+            answer,
+            timeStamp,
+            timeStamp + 30.4 days,
+            5
+        );
+    }
+
+    function nextAlterationBlock() external view returns(uint256)
+    {
+        return balancing[balancingCount].blockHeight + ((balancing[balancingCount].nextTimestamp - balancing[balancingCount].currentTimestamp) / 3);
     }
 }
