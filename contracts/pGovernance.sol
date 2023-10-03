@@ -1,18 +1,50 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./liblock.sol";
 
 contract Governance {
+
+    AggregatorV3Interface private dataFeed;
+
     constructor(address _libToken) {
         require(_libToken != address(0), "Invalid LIB Token address");
         libToken = Liblock(_libToken);
         threshold = 5;
+        setAdmin(msg.sender);
+        balancingCount = 0;
+        balancing[balancingCount] = Balancing(
+            balancingCount,
+            block.number,
+            0,
+            block.timestamp,
+            block.timestamp + 1 days,
+            10*10**18,
+            10*10**8
+        );
+        dataFeed = AggregatorV3Interface(
+            0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41
+        );
     }
 
     Liblock public libToken;
-    uint256 internal threshold;
+    uint256 private threshold;
+    address internal admin;
+
+    struct Balancing {
+        uint id;
+        uint blockHeight;
+        int currentPrice;
+        uint currentTimestamp;
+        uint nextTimestamp;
+        uint epochFloor;
+        uint epochPriceTarget;
+    }
+
+    mapping(uint256 => Balancing) public balancing;
+    uint256 public balancingCount;
 
     struct Proposal {
         uint256 id;
@@ -33,9 +65,14 @@ contract Governance {
 
     mapping(address => mapping(uint256 => bool)) public voted;
 
+    modifier onlyAdmin(){
+        require(isAdmin(msg.sender));
+        _;
+    }
+
     modifier hasEnoughDelegatedTokens() {
         require(
-            libToken.getVotes(msg.sender) > 100,
+            libToken.getVotes(msg.sender) > balancing[balancingCount].epochFloor,
             "Insufficient delegated tokens"
         );
         _;
@@ -51,6 +88,44 @@ contract Governance {
             "Insufficient delegated tokens"
         );
         _;
+    }
+
+    function setAdmin(address account) private
+    {
+        require(account != address(0), "Invalid address");
+        admin = account;
+    }
+
+    function isAdmin(address account) internal view returns(bool)
+    {
+        return admin == account;
+    }
+
+    function balanceFloor() external onlyAdmin {
+        // require(balancing[balancingCount].nextTimestamp >= block.timestamp);
+        balancingCount++;
+
+        (
+            /* uint80 roundID */,
+            int256 answer,
+            /* uint startedAt */,
+            uint256 timeStamp,
+            /* uint80 answeredInRound */
+        ) = dataFeed.latestRoundData();
+
+        uint256 nextPriceTaget = balancing[balancingCount-1].epochPriceTarget + balancing[balancingCount-1].epochPriceTarget / 2000;
+
+        uint256 epochFloor = (nextPriceTaget*10**18 / uint(answer));
+
+        balancing[balancingCount] = Balancing(
+            balancingCount,
+            block.number,
+            answer,
+            timeStamp,
+            timeStamp + 7 days,
+            epochFloor,
+            nextPriceTaget
+        );
     }
 
     function createProposal(
@@ -186,5 +261,11 @@ contract Governance {
             proposal.executed = true;
             proposal.accepted = false;
         }
+    }
+
+    
+    function nextAlterationBlock() external view returns(uint256)
+    {
+        return balancing[balancingCount].blockHeight + ((balancing[balancingCount].nextTimestamp - balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
     }
 }
