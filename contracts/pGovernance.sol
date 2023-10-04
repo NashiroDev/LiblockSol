@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./liblock.sol";
 
 contract Governance {
@@ -13,6 +14,7 @@ contract Governance {
         require(_libToken != address(0), "Invalid LIB Token address");
         libToken = Liblock(_libToken);
         threshold = 5;
+        maxPower = libToken.totalSupply() / 1000;
         setAdmin(msg.sender);
         balancingCount = 0;
         balancing[balancingCount] = Balancing(
@@ -31,6 +33,7 @@ contract Governance {
 
     Liblock public libToken;
     uint256 private threshold;
+    uint256 public maxPower;
     address internal admin;
 
     struct Balancing {
@@ -96,7 +99,7 @@ contract Governance {
         admin = account;
     }
 
-    function isAdmin(address account) internal view returns(bool)
+    function isAdmin(address account) private view returns(bool)
     {
         return admin == account;
     }
@@ -202,29 +205,53 @@ contract Governance {
             checkProposalOutcome(_proposalId);
         }
 
-        uint256 votePower = libToken.getVotes(msg.sender);
-
         require(!proposal.executed, "Proposal already executed");
+
+        uint256 votePower = libToken.getVotes(msg.sender);
 
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
-
-        if (
+        
+        if (votePower > maxPower)
+        {
+            if (
             keccak256(abi.encodePacked(_vote)) ==
             keccak256(abi.encodePacked("yes"))
-        ) {
-            proposal.yesVotes += votePower;
-        } else if (
+            ) {
+                proposal.yesVotes += maxPower;
+                proposal.abstainVotes += votePower-maxPower;
+            } else if (
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("no"))
+            ) {
+                proposal.noVotes += maxPower;
+                proposal.abstainVotes += votePower-maxPower;
+            } else if (
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("abstain"))
+            ) {
+                proposal.abstainVotes += votePower;
+            }
+        } else {
+            if (
             keccak256(abi.encodePacked(_vote)) ==
-            keccak256(abi.encodePacked("no"))
-        ) {
-            proposal.noVotes += votePower;
-        } else if (
-            keccak256(abi.encodePacked(_vote)) ==
-            keccak256(abi.encodePacked("abstain"))
-        ) {
-            proposal.abstainVotes += votePower;
+            keccak256(abi.encodePacked("yes"))
+            ) {
+                proposal.yesVotes += votePower;
+            } else if (
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("no"))
+            ) {
+                proposal.noVotes += votePower;
+            } else if (
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("abstain"))
+            ) {
+                proposal.abstainVotes += votePower;
+            }
         }
+
+        
     }
 
     function calculateProgression(
