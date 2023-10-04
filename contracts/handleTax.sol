@@ -10,10 +10,22 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     address public feeRecipient;
     address internal admin;
 
+    // setting initial destination wallet address for feees 
+    address private devWallet = payable(0x05525CdE529C5212F1eaB7f033146C8CC103cd5D);
+    address private distributionContract = payable(address(admin));
+    address private liblockFondationWallet;
+
+    // setting initial shares of generated fees
+    uint16 public devWalletShares = 100; //10%
+    uint16 public distributionContractShares = 625; //62,5%
+    uint16 public liblockFondationWalletShares = 200; //20% 
+    uint16 public zeroAddressShares = 75; //7.5%
+
     constructor() ERC20("TokenX", "TOX") ERC20Permit("TokenX") {
         _mint(address(this), 75000000 * 10**decimals());
         _mint(address(msg.sender), 75000000 * 10**decimals());
         setAdmin(msg.sender);
+        liblockFondationWallet = msg.sender;
         feeRecipient = address(this);
     }
 
@@ -34,71 +46,78 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint amount
     ) internal override(ERC20, ERC20Votes) {
         super._afterTokenTransfer(from, to, amount);
     }
 
-    function _mint(address to, uint256 amount)
+    function _mint(address to, uint amount)
         internal
         override(ERC20, ERC20Votes)
     {
         super._mint(to, amount);
     }
 
-    function _burn(address account, uint256 amount)
+    function _burn(address account, uint amount)
         internal
         override(ERC20, ERC20Votes)
     {
         super._burn(account, amount);
     }
 
-    function calculateFeePercentage(uint256 amount)
+    function calculateFeePercentage(uint amount)
         private
         pure
-        returns (uint256)
+        returns (uint32)
     {
         if (amount >= 35000000 * 10**18) {
             return 520000000; // 52% fee
         } else if (amount >= 10000000 * 10**18) {
             uint fee = ((amount - 10000000 * 10**18) / 10**18) * 8; // 0.0000008
-            return 320000000+fee; // 32% fee + 8 / 10**7 per full token
+            return uint32(320000000+fee); // 32% fee + 8 / 10**7 per full token
         } else if (amount >= 1000000 * 10**18) {
             uint fee = ((amount - 1000000 * 10**18) / 10**18) * 22; // 0.00000022
-            return 120000000+fee; // 12% fee + 22 / 10**7 per full token
+            return uint32(120000000+fee); // 12% fee + 22 / 10**7 per full token
         } else if (amount >= 100000 * 10**18) {
             uint fee = ((amount - 100000 * 10**18) / 10**18) * 83; // 0.0000083
-            return 45000000+fee; // 4.5% fee + 83 / 10**7 per full token
+            return uint32(45000000+fee); // 4.5% fee + 83 / 10**7 per full token
         } else if (amount >= 10000 * 10**18) {
             uint fee = ((amount - 10000 * 10**18) / 10**18) * 416; // 0.0000416
-            return 7500000+fee; // 0.75% fee + 416 / 10**7 per full token
+            return uint32(7500000+fee); // 0.75% fee + 416 / 10**7 per full token
         } else if (amount >= 1000 * 10**18) {
             uint fee = ((amount - 1000 * 10**18) / 10**18) * 500; // 0.00005
-            return 3000000+fee; // 0.3% fee + 500 / 10**7 per full token
+            return uint32(3000000+fee); // 0.3% fee + 500 / 10**7 per full token
         } else if (amount >= 100 * 10**18) {
             uint fee = ((amount - 100 * 10**18) / 10**18) * 2222; // 0.0002222
-            return 1000000+fee; // 0.1% fee + 2222 / 10**7 per full token
+            return uint32(1000000+fee); // 0.1% fee + 2222 / 10**7 per full token
         } else if (amount >= 10 * 10**18) {
             uint fee = ((amount - 10 * 10**18) / 10**18) * 10000; // 0.001
-            return 100000+fee; // 0.01% fee + 10000 / 10**7 per full token
+            return uint32(100000+fee); // 0.01% fee + 10000 / 10**7 per full token
         } else {
             return 100000; // 0.01% fee
         }
     }
 
-    function setFeeRecipient(address _feeRecipient) external onlyAdmin {
-        feeRecipient = _feeRecipient;
+    function setFeeRecipientsAndShares(address _devWallet, uint16 _devWalletShares, address _distributionContract, uint16 _distributionContractShares, uint16 _liblockFondationWalletShares, uint16 _zeroAdressShares) external onlyAdmin {
+        require(_devWalletShares+_distributionContractShares+_liblockFondationWalletShares+_zeroAdressShares == 1000, "Cummulated shares not equal to 1000");
+        devWallet = _devWallet;
+        distributionContract = _distributionContract;
+        liblockFondationWallet = msg.sender;
+        devWalletShares = _devWalletShares;
+        distributionContractShares = _distributionContractShares;
+        zeroAddressShares = _zeroAdressShares;
+        liblockFondationWalletShares = _liblockFondationWalletShares;
     }
 
     function _transfer(
         address sender,
         address recipient,
-        uint256 amount
+        uint amount
     ) internal virtual override {
-        uint256 feePercentage = calculateFeePercentage(amount);
+        uint32 feePercentage = calculateFeePercentage(amount);
         require(feePercentage < 65 * 10**7, "Max fee amount reached");
-        uint256 feeAmount = (amount * (feePercentage / 10**3)) / 10**6;
-        uint256 transferAmount = amount - feeAmount;
+        uint feeAmount = (amount * (feePercentage / 10**3)) / 10**6;
+        uint transferAmount = amount - feeAmount;
 
         super._transfer(sender, recipient, transferAmount);
         super._transfer(sender, feeRecipient, feeAmount);
