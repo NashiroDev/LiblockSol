@@ -12,7 +12,7 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     // setting initial destination wallet address for feees
     address private devWallet =
         payable(0x05525CdE529C5212F1eaB7f033146C8CC103cd5D);
-    address private distributionContract = payable(address(admin));
+    address private distributionContract = payable(0x3a15BBaeCdBb123bd30583C6249D2d1dd13e0709);
     address private liblockFondationWallet;
 
     // setting initial shares of generated fees
@@ -25,7 +25,7 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         _mint(address(this), 75000000 * 10 ** decimals());
         _mint(address(msg.sender), 75000000 * 10 ** decimals());
         setAdmin(msg.sender);
-        liblockFondationWallet = msg.sender;
+        liblockFondationWallet = admin;
     }
 
     modifier onlyAdmin() {
@@ -129,9 +129,9 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         uint transferAmount = amount - feeAmount;
 
         super._transfer(sender, recipient, transferAmount);
-        super._transfer(sender, devWallet, feeAmount*(devWalletShares/10**3));
-        super._transfer(sender, distributionContract, feeAmount*(distributionContractShares/10**3));
-        super._transfer(sender, liblockFondationWallet, feeAmount*(liblockFondationWalletShares/10**3));
-        super._transfer(sender, address(0), feeAmount*(zeroAddressShares/10**3));
+        super._transfer(sender, devWallet, (feeAmount*devWalletShares)/10**3);
+        super._transfer(sender, distributionContract, (feeAmount*distributionContractShares) / 10**3);
+        super._transfer(sender, liblockFondationWallet, (feeAmount*liblockFondationWalletShares) / 10**3);
+        super._burn(sender, (feeAmount*zeroAddressShares) / 10**3);
     }
 }
