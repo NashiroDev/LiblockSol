@@ -96,8 +96,8 @@ contract TokenX is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         uint256 amount
     ) internal virtual override {
         uint256 feePercentage = calculateFeePercentage(amount);
-        require(feePercentage < 1000000, "Unreal fee amount");
-        uint256 feeAmount = (amount * feePercentage) / 10**6;
+        require(feePercentage < 65 * 10**7, "Max fee amount reached");
+        uint256 feeAmount = (amount * (feePercentage / 10**3)) / 10**6;
         uint256 transferAmount = amount - feeAmount;
 
         super._transfer(sender, recipient, transferAmount);
