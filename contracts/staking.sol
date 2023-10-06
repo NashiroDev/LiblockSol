@@ -76,6 +76,8 @@ contract TokenStaking {
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
         rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
+        requestDelegationDeposit(address(lock), msg.sender);
+        requestDelegationReward(msg.sender, msg.sender);
 
         ledger[msg.sender][nounce[msg.sender]] = Ledger(
             nounce[msg.sender],
@@ -126,5 +128,13 @@ contract TokenStaking {
 
     function requestNewFeeExcludedAddress(address _address, bool _excluded) private {
         depositToken.setFeeExcludedAddress(_address, _excluded);
+    }
+
+    function requestDelegationDeposit(address delegator, address delegatee) private {
+        depositToken.delegateFrom(delegator, delegatee);
+    }
+
+    function requestDelegationReward(address delegator, address delegatee) private {
+        rewardToken.delegateFrom(delegator, delegatee);
     }
 }

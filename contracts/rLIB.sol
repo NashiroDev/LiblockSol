@@ -56,6 +56,12 @@ contract rLiblock is
         super._burn(account, amount);
     }
 
+    function delegateFrom(address delegator, address delegatee) external onlyAdmin {
+        require(delegator != address(0), "Delegator can't be zero address");
+        require(delegator != address(this), "Illegal");
+        super._delegate(delegator, delegatee);
+    }
+
     function selfApprove(uint amount) external onlyAdmin {
         _approve(address(this), address(admin), amount);
     }

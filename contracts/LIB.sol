@@ -77,6 +77,13 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
 
     // token exclusive function
 
+
+    function delegateFrom(address delegator, address delegatee) external onlyAdmin {
+        require(delegator != address(0), "Delegator can't be zero address");
+        require(delegator != address(this), "Illegal");
+        super._delegate(delegator, delegatee);
+    }
+
     // Define the amout of fees a user will pay depending of the amount of token
     function calculateFeePercentage(
         uint256 amount
