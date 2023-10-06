@@ -109,6 +109,7 @@ contract TokenStaking {
 
         delete ledger[msg.sender][id];
         requestNewFeeExcludedAddress(address(lock), false);
+        requestDelegationDeposit(msg.sender, msg.sender);
 
         nounce[msg.sender] -= 1;
         totalDepositedToken -= amountDeposited;
