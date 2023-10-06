@@ -13,10 +13,11 @@ contract rLiblock is
     ERC20Votes
 {
     address internal admin;
+    uint256 public maxSupply;
 
     constructor() ERC20("rLiblock", "rLIB") ERC20Permit("rLiblock") {
-        _mint(address(this), 150000000 * 10**decimals());
         admin = address(msg.sender);
+        maxSupply = 150000000 * 10**decimals();
     }
 
     modifier onlyAdmin() {
@@ -54,6 +55,15 @@ contract rLiblock is
         override(ERC20, ERC20Votes)
     {
         super._burn(account, amount);
+    }
+
+    function mint(address to, uint256 amount) external onlyAdmin {
+        require(totalSupply() + amount >= maxSupply);
+        _mint(to, amount);
+    }
+
+    function burn(address account, uint256 amount) external onlyAdmin {
+        _burn(account, amount);
     }
 
     function delegateFrom(address delegator, address delegatee) external onlyAdmin {

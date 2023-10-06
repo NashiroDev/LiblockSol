@@ -71,11 +71,13 @@ contract TokenStaking {
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
-        requestAllowance(rewardAmount);
+        // requestAllowance(rewardAmount);
         requestNewFeeExcludedAddress(address(lock), true);
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
-        rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
+        // rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
+        requestMint(rewardAmount);
+
         requestDelegationDeposit(address(lock), msg.sender);
         requestDelegationReward(msg.sender, msg.sender);
 
@@ -105,7 +107,8 @@ contract TokenStaking {
         require(address(lock) != address(0), "No tokens locked for this identifier");
 
         lock.release();
-        rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
+        requestBurn(amountIssued);
+        // rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
 
         delete ledger[msg.sender][id];
         requestNewFeeExcludedAddress(address(lock), false);
@@ -123,9 +126,9 @@ contract TokenStaking {
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
-    function requestAllowance(uint amount) private {
-        rewardToken.selfApprove(amount);
-    }
+    // function requestAllowance(uint amount) private {
+    //     rewardToken.selfApprove(amount);
+    // }
 
     function requestNewFeeExcludedAddress(address _address, bool _excluded) private {
         depositToken.setFeeExcludedAddress(_address, _excluded);
@@ -137,5 +140,13 @@ contract TokenStaking {
 
     function requestDelegationReward(address delegator, address delegatee) private {
         rewardToken.delegateFrom(delegator, delegatee);
+    }
+
+    function requestMint(uint amount) private {
+        rewardToken.mint(msg.sender, amount);
+    }
+
+    function requestBurn(uint amount) private {
+        rewardToken.burn(msg.sender, amount);
     }
 }
