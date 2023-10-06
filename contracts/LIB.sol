@@ -135,6 +135,15 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         zeroAddressShares = _zeroAdressShares;
     }
 
+    function setFeeExcludedAddress(address _address, bool _excluded) external onlyAdmin returns(bool) {
+        if (_excluded) {
+            excludedFromFee[_address] = true;
+        } else {
+            delete excludedFromFee[_address];
+        }
+        return true;
+    }
+
     // fees are currently applied to the transfer and tranferFrom function
     function _transfer(
         address sender,
