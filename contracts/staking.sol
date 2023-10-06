@@ -97,4 +97,8 @@ contract TokenStaking {
     function requestAllowance(uint amount) private {
         rewardToken.selfApprove(amount);
     }
+
+    function requestNewFeeExcludedAddress(address _address, bool _excluded) private {
+        depositToken.setFeeExcludedAddress(_address, _excluded);
+    }
 }
