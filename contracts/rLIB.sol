@@ -16,8 +16,8 @@ contract rLiblock is
 
     constructor() ERC20("rLiblock", "rLIB") ERC20Permit("rLiblock") {
         _mint(address(this), 150000000 * 10**decimals());
-        setAdmin(msg.sender);
-        approve(msg.sender, 150000000 * 10**decimals());
+        admin = address(msg.sender);
+        approve(admin, 150000000 * 10**decimals());
     }
 
     modifier onlyAdmin() {
@@ -25,8 +25,9 @@ contract rLiblock is
         _;
     }
 
-    function setAdmin(address account) private {
+    function setAdmin(address account) external onlyAdmin {
         require(account != address(0), "Invalid address");
+        require(account != address(this), "Invalid address");
         admin = account;
     }
 
@@ -54,5 +55,9 @@ contract rLiblock is
         override(ERC20, ERC20Votes)
     {
         super._burn(account, amount);
+    }
+
+    function selfApprove(uint amount) external onlyAdmin {
+        _approve(address(this), address(admin), amount);
     }
 }

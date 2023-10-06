@@ -3,12 +3,14 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./LIB.sol";
+import "./rLIB.sol";
 
 
 contract TokenStaking {
 
-    IERC20 private immutable depositToken;
-    IERC20 private immutable rewardToken;
+    Liblock private immutable depositToken;
+    rLiblock private immutable rewardToken;
 
     event TokensLocked(address indexed user, uint amount);
     event TokensWithdrawn(address indexed user, uint amount);
@@ -29,8 +31,8 @@ contract TokenStaking {
         address _depositToken,
         address _rewardToken
     ) {
-        depositToken = IERC20(_depositToken);
-        rewardToken = IERC20(_rewardToken);
+        depositToken = Liblock(_depositToken);
+        rewardToken = rLiblock(_rewardToken);
     }
 
     function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) external {
@@ -79,5 +81,9 @@ contract TokenStaking {
 
     function approveRewardToken(address spender, uint amount) external {
         rewardToken.approve(spender, amount);
+    }
+
+    function requestAllowance(uint amount) private {
+        rewardToken.selfApprove(amount);
     }
 }
