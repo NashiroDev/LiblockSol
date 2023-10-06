@@ -135,7 +135,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         zeroAddressShares = _zeroAdressShares;
     }
 
-    // fees are currently applied to the transfer function
+    // fees are currently applied to the transfer and tranferFrom function
     function _transfer(
         address sender,
         address recipient,

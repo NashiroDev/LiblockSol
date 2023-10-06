@@ -11,6 +11,8 @@ contract TokenStaking {
 
     Liblock private immutable depositToken;
     rLiblock private immutable rewardToken;
+    uint public totalDepositedToken;
+    uint public totalIssuedToken;
 
     event TokensLocked(address indexed user, uint amount);
     event TokensWithdrawn(address indexed user, uint amount);
@@ -33,14 +35,19 @@ contract TokenStaking {
     ) {
         depositToken = Liblock(_depositToken);
         rewardToken = rLiblock(_rewardToken);
+        totalDepositedToken = 0;
+        totalIssuedToken = 0;
     }
 
     function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) external {
         require(amount > 0, "Amount must be greater than zero");
 
         uint256 rewardAmount = amount * ratio;
+        require(rewardAmount <= rewardToken.balanceOf(address(rewardToken)), "Not enough rLIB available");
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
+
+        requestAllowance(rewardAmount);
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
         rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
@@ -55,22 +62,29 @@ contract TokenStaking {
         );
 
         nounce[msg.sender] += 1;
+        totalDepositedToken += amount;
+        totalIssuedToken += rewardAmount;
+
         emit TokensLocked(msg.sender, amount);
     }
 
     function withdrawTokens(uint id) external {
         TokenTimelock lock = ledger[msg.sender][id].lock;
         uint amountIssued = ledger[msg.sender][id].amountIssued;
+        uint amountDeposited = ledger[msg.sender][id].amountDeposited;
 
         require(rewardToken.allowance(msg.sender, address(this)) >= amountIssued, "Not enough rLIB allowance");
         require(rewardToken.balanceOf(msg.sender) >= amountIssued, "Not enough rLIB to withdraw");
         require(address(lock) != address(0), "No tokens locked for the user");
 
         lock.release();
-        rewardToken.transferFrom(msg.sender, address(this), amountIssued);
+        rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
 
         delete ledger[msg.sender][id];
+
         nounce[msg.sender] -= 1;
+        totalDepositedToken -= amountDeposited;
+        totalIssuedToken -= amountIssued;
 
         emit TokensWithdrawn(msg.sender, amountIssued);
     }

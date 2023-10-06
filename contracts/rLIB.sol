@@ -17,7 +17,6 @@ contract rLiblock is
     constructor() ERC20("rLiblock", "rLIB") ERC20Permit("rLiblock") {
         _mint(address(this), 150000000 * 10**decimals());
         admin = address(msg.sender);
-        approve(admin, 150000000 * 10**decimals());
     }
 
     modifier onlyAdmin() {
