@@ -19,12 +19,12 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     address private liblockFondationWallet;
 
     // setting initial shares of generated fees
-    uint16 public devWalletShares = 100; //10%
-    uint16 public distributionContractShares = 625; //62,5%
-    uint16 public liblockFondationWalletShares = 200; //20%
-    uint16 public zeroAddressShares = 75; //7.5%
+    uint16 private devWalletShares = 100; //10%
+    uint16 private distributionContractShares = 625; //62,5%
+    uint16 private liblockFondationWalletShares = 200; //20%
+    uint16 private zeroAddressShares = 75; //7.5%
 
-    mapping(address => bool) public excludedFromFee;
+    mapping(address => bool) private excludedFromFee;
 
     constructor() ERC20("Liblock", "LIB") ERC20Permit("Liblock") {
         _mint(address(this), 74500000 * 10 ** decimals());
