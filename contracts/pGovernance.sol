@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./liblock.sol";
 
 contract Governance {
@@ -32,7 +30,7 @@ contract Governance {
     }
 
     Liblock public libToken;
-    uint256 private threshold;
+    uint8 private threshold;
     uint256 public maxPower;
     address internal admin;
 
@@ -50,23 +48,23 @@ contract Governance {
     uint256 public balancingCount;
 
     struct Proposal {
-        uint256 id;
+        uint id;
         string title;
         string description;
         address creator;
         bool executed;
         bool accepted;
-        uint256 yesVotes;
-        uint256 noVotes;
-        uint256 abstainVotes;
-        uint256 uniqueVotes;
-        uint256 votingEndTime;
+        uint yesVotes;
+        uint noVotes;
+        uint abstainVotes;
+        uint uniqueVotes;
+        uint votingEndTime;
     }
 
-    mapping(uint256 => Proposal) public proposals;
-    uint256 public proposalCount;
+    mapping(uint => Proposal) public proposals;
+    uint public proposalCount;
 
-    mapping(address => mapping(uint256 => bool)) public voted;
+    mapping(address => mapping(uint => bool)) public voted;
 
     modifier onlyAdmin(){
         require(isAdmin(msg.sender));
@@ -110,15 +108,15 @@ contract Governance {
 
         (
             /* uint80 roundID */,
-            int256 answer,
+            int answer,
             /* uint startedAt */,
-            uint256 timeStamp,
+            uint timeStamp,
             /* uint80 answeredInRound */
         ) = dataFeed.latestRoundData();
 
-        uint256 nextPriceTaget = balancing[balancingCount-1].epochPriceTarget + balancing[balancingCount-1].epochPriceTarget / 2000;
+        uint nextPriceTaget = balancing[balancingCount-1].epochPriceTarget + balancing[balancingCount-1].epochPriceTarget / 2000;
 
-        uint256 epochFloor = (nextPriceTaget*10**18 / uint(answer));
+        uint epochFloor = (nextPriceTaget*10**18 / uint(answer));
 
         balancing[balancingCount] = Balancing(
             balancingCount,
@@ -156,22 +154,22 @@ contract Governance {
     }
 
     function getProposal(
-        uint256 _proposalId
+        uint _proposalId
     )
         public
         view
         returns (
-            uint256 id,
+            uint id,
             string memory title,
             string memory description,
             address creator,
             bool executed,
             bool accepted,
-            uint256 yesVotes,
-            uint256 noVotes,
-            uint256 abstainVotes,
-            uint256 uniqueVotes,
-            uint256 votingEndTime
+            uint yesVotes,
+            uint noVotes,
+            uint abstainVotes,
+            uint uniqueVotes,
+            uint votingEndTime
         )
     {
         Proposal storage proposal = proposals[_proposalId];
@@ -191,7 +189,7 @@ contract Governance {
     }
 
     function vote(
-        uint256 _proposalId,
+        uint _proposalId,
         string memory _vote
     ) external onlyTokenHolderDelegatee {
         require(
@@ -207,7 +205,7 @@ contract Governance {
 
         require(!proposal.executed, "Proposal already executed");
 
-        uint256 votePower = libToken.getVotes(msg.sender);
+        uint votePower = libToken.getVotes(msg.sender);
 
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
@@ -250,15 +248,13 @@ contract Governance {
                 proposal.abstainVotes += votePower;
             }
         }
-
-        
     }
 
     function calculateProgression(
-        uint256 _proposalId
-    ) public view returns (uint256, uint256) {
+        uint _proposalId
+    ) external view returns (uint, uint) {
         Proposal storage proposal = proposals[_proposalId];
-        uint256 totalVotes = proposal.yesVotes +
+        uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
 
@@ -266,13 +262,13 @@ contract Governance {
             return (0, 0);
         }
 
-        uint256 progression = (proposal.yesVotes * 100) / totalVotes;
+        uint progression = (proposal.yesVotes * 100) / totalVotes;
         return (progression, totalVotes);
     }
 
-    function checkProposalOutcome(uint256 _proposalId) private {
+    function checkProposalOutcome(uint _proposalId) private {
         Proposal storage proposal = proposals[_proposalId];
-        uint256 totalVotes = proposal.yesVotes +
+        uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
 
@@ -291,7 +287,7 @@ contract Governance {
     }
 
     
-    function nextAlterationBlock() external view returns(uint256)
+    function nextAlterationBlock() external view returns(uint)
     {
         return balancing[balancingCount].blockHeight + ((balancing[balancingCount].nextTimestamp - balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
     }
