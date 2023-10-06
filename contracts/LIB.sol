@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-// import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     address internal admin;
@@ -30,7 +30,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     }
 
     modifier onlyAdmin() {
-        require(isAdmin(msg.sender));
+        require(isAdmin(msg.sender), "Not admin");
         _;
     }
 

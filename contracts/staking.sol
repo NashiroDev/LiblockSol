@@ -1,32 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Wrapper.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import "./liblock.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
-interface IERC20Wrapper is IERC20 {
-    function wrappedToken() external view returns (IERC20);
-}
-
-abstract contract TokenStaking is IERC20Wrapper  {
-    ERC20Wrapper private _wrapper;
+contract TokenStaking {
 
     IERC20 private immutable depositToken;
     IERC20 private immutable rewardToken;
-    uint256 private immutable dTokenRTokenRatio;
 
     event TokensLocked(address indexed user, uint amount);
     event TokensWithdrawn(address indexed user, uint amount);
 
-    mapping(address => mapping(uint => Ledger)) private ledger;
-    mapping(address => uint) private nounce;
-
-    // mapping(address => mapping(uint => uint)) private locks;
-    // mapping(address => mapping(uint => uint)) private lockPeriod;
-    mapping(address => TokenTimelock) private _locks;
+    mapping(address => mapping(uint => Ledger)) public ledger;
+    mapping(address => uint) public nounce;
 
     struct Ledger {
         uint id;
@@ -34,62 +22,62 @@ abstract contract TokenStaking is IERC20Wrapper  {
         uint amountIssued;
         uint8 ratio;
         uint lockUntil;
+        TokenTimelock lock;
     }
 
     constructor(
         address _depositToken,
-        address _rewardToken,
-        uint256 _dTokenRTokenRatio
+        address _rewardToken
     ) {
         depositToken = IERC20(_depositToken);
         rewardToken = IERC20(_rewardToken);
-        dTokenRTokenRatio = _dTokenRTokenRatio;
     }
 
-    function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) private {
+    function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) external {
         require(amount > 0, "Amount must be greater than zero");
 
-        depositToken.transferFrom(msg.sender, address(this), amount);
-
         uint256 rewardAmount = amount * ratio;
-        rewardToken.transferFrom(address(this), msg.sender, rewardAmount);
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
-        _locks[msg.sender] = lock;
+        depositToken.transferFrom(msg.sender, address(lock), amount);
+        rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
 
         ledger[msg.sender][nounce[msg.sender]] = Ledger(
             nounce[msg.sender],
             amount,
             rewardAmount,
             ratio,
-            block.timestamp + lockDuration
+            block.timestamp + lockDuration,
+            lock
         );
 
         nounce[msg.sender] += 1;
         emit TokensLocked(msg.sender, amount);
     }
 
-    // function withdrawTokens() external {
-    //     TokenTimelock lock = _locks[msg.sender];
-    //     require(address(lock) != address(0), "No tokens locked for the user");
+    function withdrawTokens(uint id) external {
+        TokenTimelock lock = ledger[msg.sender][id].lock;
+        uint amountIssued = ledger[msg.sender][id].amountIssued;
 
-    //     require(lock.isLocked(), "Tokens are not yet unlocked");
+        require(rewardToken.allowance(msg.sender, address(this)) >= amountIssued, "Not enough rLIB allowance");
+        require(rewardToken.balanceOf(msg.sender) >= amountIssued, "Not enough rLIB to withdraw");
+        require(address(lock) != address(0), "No tokens locked for the user");
 
-    //     uint256 depositAmount = _deposits[msg.sender];
-    //     uint256 rewardAmount = _rewardTokensIssued[msg.sender];
+        lock.release();
+        rewardToken.transferFrom(msg.sender, address(this), amountIssued);
 
-    //     delete _locks[msg.sender];
-    //     delete _deposits[msg.sender];
-    //     delete _rewardTokensIssued[msg.sender];
+        delete ledger[msg.sender][id];
+        nounce[msg.sender] -= 1;
 
-    //     _token.safeTransfer(msg.sender, depositAmount);
-    //     _rewardToken.safeTransfer(msg.sender, rewardAmount);
+        emit TokensWithdrawn(msg.sender, amountIssued);
+    }
 
-    //     emit TokensWithdrawn(msg.sender, depositAmount);
-    // }
+    function approveDepositToken(address spender, uint amount) external {
+        depositToken.approve(spender, amount);
+    }
 
-    function getDeposits(address user, uint id) external view returns (Ledger memory) {
-        return ledger[user][id];
+    function approveRewardToken(address spender, uint amount) external {
+        rewardToken.approve(spender, amount);
     }
 }
