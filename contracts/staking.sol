@@ -89,12 +89,8 @@ contract TokenStaking {
         emit TokensWithdrawn(msg.sender, amountIssued);
     }
 
-    function approveDepositToken(address spender, uint amount) external {
-        depositToken.approve(spender, amount);
-    }
-
-    function approveRewardToken(address spender, uint amount) external {
-        rewardToken.approve(spender, amount);
+    function getLockTimeRemaining(address _address, uint _nounce) external view returns(uint timeRemaining) {
+        return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
     function requestAllowance(uint amount) private {
