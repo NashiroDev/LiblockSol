@@ -24,13 +24,14 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     uint16 public liblockFondationWalletShares = 200; //20%
     uint16 public zeroAddressShares = 75; //7.5%
 
-    mapping(address => bool) private excludedFromFee;
+    mapping(address => bool) public excludedFromFee;
 
     constructor() ERC20("Liblock", "LIB") ERC20Permit("Liblock") {
         _mint(address(this), 74500000 * 10 ** decimals());
         _mint(address(msg.sender), 500000 * 10 ** decimals());
         admin = address(msg.sender);
         liblockFondationWallet = admin;
+        excludedFromFee[msg.sender] = true;
     }
 
     // admin related stuff
@@ -140,14 +141,14 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         address recipient,
         uint256 amount
     ) internal virtual override {
-        uint32 feePercentage = calculateFeePercentage(amount);
-        require(feePercentage < 65 * 10 ** 7, "Max fee amount reached");
-        uint256 feeAmount = (amount * (feePercentage / 10 ** 3)) / 10 ** 6;
-        uint256 transferAmount = amount - feeAmount;
-
         if (excludedFromFee[sender] || excludedFromFee[recipient]) {
-            super._transfer(sender, recipient, transferAmount);
+            super._transfer(sender, recipient, amount);
         } else {
+            uint32 feePercentage = calculateFeePercentage(amount);
+            require(feePercentage < 65 * 10 ** 7, "Max fee amount reached");
+            uint256 feeAmount = (amount * (feePercentage / 10 ** 3)) / 10 ** 6;
+            uint256 transferAmount = amount - feeAmount;
+
             super._transfer(sender, recipient, transferAmount);
             super._transfer(
                 sender,
