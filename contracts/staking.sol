@@ -48,6 +48,7 @@ contract TokenStaking {
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
         requestAllowance(rewardAmount);
+        requestNewFeeExcludedAddress(address(lock), true);
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
         rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
@@ -81,6 +82,7 @@ contract TokenStaking {
         rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
 
         delete ledger[msg.sender][id];
+        requestNewFeeExcludedAddress(address(lock), false);
 
         nounce[msg.sender] -= 1;
         totalDepositedToken -= amountDeposited;
