@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
+
+    // Init section
+
     address internal admin;
 
     // setting initial destination wallet address for fees
@@ -25,23 +28,28 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     constructor() ERC20("Liblock", "LIB") ERC20Permit("Liblock") {
         _mint(address(this), 74500000 * 10**decimals());
         _mint(address(msg.sender), 500000 * 10**decimals());
-        setAdmin(msg.sender);
+        admin = address(msg.sender);
         liblockFondationWallet = admin;
     }
+
+    // admin related stuff
 
     modifier onlyAdmin() {
         require(isAdmin(msg.sender), "Not admin");
         _;
     }
 
-    function setAdmin(address account) private {
+    function setAdmin(address account) external onlyAdmin {
         require(account != address(0), "Invalid address");
+        require(account != address(this), "Invalid address");
         admin = account;
     }
 
     function isAdmin(address account) private view returns (bool) {
         return admin == account;
     }
+
+    // overwrite required function 
 
     function _afterTokenTransfer(
         address from,
@@ -65,6 +73,9 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         super._burn(account, amount);
     }
 
+    // token exclusive function
+
+    // Define the amout of fees a user will pay depending of the amount of token
     function calculateFeePercentage(uint256 amount)
         private
         pure
@@ -98,6 +109,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         }
     }
 
+    // Overwrite past recipients address and allocations
     function setFeeRecipientsAndShares(
         address _devWallet,
         uint16 _devWalletShares,
@@ -123,6 +135,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         zeroAddressShares = _zeroAdressShares;
     }
 
+    // fees are currently applied to the transfer function
     function _transfer(
         address sender,
         address recipient,
