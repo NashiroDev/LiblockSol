@@ -75,7 +75,7 @@ contract TokenStaking {
 
         require(rewardToken.allowance(msg.sender, address(this)) >= amountIssued, "Not enough rLIB allowance");
         require(rewardToken.balanceOf(msg.sender) >= amountIssued, "Not enough rLIB to withdraw");
-        require(address(lock) != address(0), "No tokens locked for the user");
+        require(address(lock) != address(0), "No tokens locked for this identifier");
 
         lock.release();
         rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
@@ -89,6 +89,7 @@ contract TokenStaking {
         emit TokensWithdrawn(msg.sender, amountIssued);
     }
 
+    // get the lock time remaining in seconds
     function getLockTimeRemaining(address _address, uint _nounce) external view returns(uint timeRemaining) {
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
