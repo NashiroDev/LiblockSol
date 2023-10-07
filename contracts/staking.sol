@@ -90,7 +90,7 @@ contract TokenStaking {
             lock
         );
 
-        nounce[msg.sender] += 1;
+        nounce[msg.sender]++;
         totalDepositedToken += amount;
         totalIssuedToken += rewardAmount;
 
@@ -114,7 +114,7 @@ contract TokenStaking {
         requestNewFeeExcludedAddress(address(lock), false);
         requestDelegationDeposit(msg.sender, msg.sender);
 
-        nounce[msg.sender] -= 1;
+        nounce[msg.sender]--;
         totalDepositedToken -= amountDeposited;
         totalIssuedToken -= amountIssued;
 
