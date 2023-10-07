@@ -24,6 +24,7 @@ contract TokenStaking {
         uint amountDeposited;
         uint amountIssued;
         uint8 ratio;
+        uint lockedAt;
         uint lockUntil;
         TokenTimelock lock;
     }
@@ -84,6 +85,7 @@ contract TokenStaking {
             amount,
             rewardAmount,
             ratio,
+            block.timestamp,
             block.timestamp + lockDuration,
             lock
         );
