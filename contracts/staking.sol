@@ -5,12 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
+import "./distribute.sol";
 
 
 contract TokenStaking {
 
     Liblock private immutable depositToken;
     rLiblock private immutable rewardToken;
+    Distributor private immutable shareDistributionContract;
+
     uint public totalDepositedToken;
     uint public totalIssuedToken;
 
@@ -21,20 +24,22 @@ contract TokenStaking {
     mapping(address => uint) public nounce;
 
     struct Ledger {
-        uint id;
         uint amountDeposited;
         uint amountIssued;
         uint8 ratio;
+        uint lockedAt;
         uint lockUntil;
         TokenTimelock lock;
     }
 
     constructor(
         address _depositToken,
-        address _rewardToken
+        address _rewardToken,
+        address _shareDistributionContract
     ) {
         depositToken = Liblock(_depositToken);
         rewardToken = rLiblock(_rewardToken);
+        shareDistributionContract = Distributor(_shareDistributionContract);
         totalDepositedToken = 0;
         totalIssuedToken = 0;
     }
@@ -65,28 +70,35 @@ contract TokenStaking {
 
     function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) private {
         require(amount > 0, "Amount must be greater than zero");
+        require(ratio <= 200, "Ratio is too high");
 
         uint256 rewardAmount = amount * (ratio / 10**2);
         require(rewardAmount <= rewardToken.balanceOf(address(rewardToken)), "Not enough rLIB available");
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
-        requestAllowance(rewardAmount);
+        // requestAllowance(rewardAmount);
         requestNewFeeExcludedAddress(address(lock), true);
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
-        rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
+        // rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
+        requestMint(rewardAmount);
+
+        requestDelegationDeposit(address(lock), msg.sender);
+        requestDelegationReward(msg.sender, msg.sender);
 
         ledger[msg.sender][nounce[msg.sender]] = Ledger(
-            nounce[msg.sender],
             amount,
             rewardAmount,
             ratio,
+            block.timestamp,
             block.timestamp + lockDuration,
             lock
         );
 
-        nounce[msg.sender] += 1;
+        sendSharesData(msg.sender, nounce[msg.sender], rewardAmount, ledger[msg.sender][nounce[msg.sender]].lockedAt, ledger[msg.sender][nounce[msg.sender]].lockUntil);
+
+        nounce[msg.sender]++;
         totalDepositedToken += amount;
         totalIssuedToken += rewardAmount;
 
@@ -103,12 +115,14 @@ contract TokenStaking {
         require(address(lock) != address(0), "No tokens locked for this identifier");
 
         lock.release();
-        rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
+        requestBurn(amountIssued);
+        // rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
 
         delete ledger[msg.sender][id];
         requestNewFeeExcludedAddress(address(lock), false);
+        requestDelegationDeposit(msg.sender, msg.sender);
 
-        nounce[msg.sender] -= 1;
+        nounce[msg.sender]--;
         totalDepositedToken -= amountDeposited;
         totalIssuedToken -= amountIssued;
 
@@ -120,11 +134,32 @@ contract TokenStaking {
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
-    function requestAllowance(uint amount) private {
-        rewardToken.selfApprove(amount);
-    }
+    // function requestAllowance(uint amount) private {
+    //     rewardToken.selfApprove(amount);
+    // }
 
     function requestNewFeeExcludedAddress(address _address, bool _excluded) private {
         depositToken.setFeeExcludedAddress(_address, _excluded);
+    }
+
+    function requestDelegationDeposit(address delegator, address delegatee) private {
+        depositToken.delegateFrom(delegator, delegatee);
+    }
+
+    function requestDelegationReward(address delegator, address delegatee) private {
+        rewardToken.delegateFrom(delegator, delegatee);
+    }
+
+    function requestMint(uint amount) private {
+        rewardToken.mint(msg.sender, amount);
+    }
+
+    function requestBurn(uint amount) private {
+        rewardToken.burn(msg.sender, amount);
+    }
+
+    function sendSharesData(address _address, uint _nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) private {
+        require(amount <= 0, "Amount is too low");
+        shareDistributionContract.writeSharesData(_address, _nounce, amount, lockTimestamp, unlockTimestamp);
     }
 }
