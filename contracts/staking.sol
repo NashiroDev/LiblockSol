@@ -21,7 +21,6 @@ contract TokenStaking {
     mapping(address => uint) public nounce;
 
     struct Ledger {
-        uint id;
         uint amountDeposited;
         uint amountIssued;
         uint8 ratio;
@@ -82,7 +81,6 @@ contract TokenStaking {
         requestDelegationReward(msg.sender, msg.sender);
 
         ledger[msg.sender][nounce[msg.sender]] = Ledger(
-            nounce[msg.sender],
             amount,
             rewardAmount,
             ratio,
