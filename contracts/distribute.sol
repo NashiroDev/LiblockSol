@@ -12,8 +12,8 @@ contract Distributor {
     uint private lastDistributionTimestamp;
     uint private epochHeight;
     uint private totalUnclaimed;
-    address[] private epochActiveAddress;
 
+    
     // track address locks
     mapping(address => mapping(uint => Allocation)) private currentAllocation;
 
@@ -22,6 +22,8 @@ contract Distributor {
 
     // track address shares and claimable tokens for an epoch
     mapping(address => mapping(uint => Shares)) private shares;
+    mapping(uint => mapping(address => bool)) private isActive;
+    mapping(uint => address[]) private epochActiveAddress;
 
     // track address allocation yet to be claimed accross all epoch
     mapping(address => uint) private totalAllocation;
@@ -78,12 +80,11 @@ contract Distributor {
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 15 days;
         epochHeight++;
-        // epochActiveAddress purge;
     }
 
     function updateAddressDividends() private { // trouver bon ratio pour la partage du pool
-        for (uint i = 0; i <= epochActiveAddress.length; i++) {
-            totalAllocation[epochActiveAddress[i]] += epochTotalAllocation[epochHeight].epochClaimableToken / (epochTotalAllocation[epochHeight].epochShares - shares[epochActiveAddress[i]][epochHeight].epochShares);
+        for (uint i = 0; i <= epochActiveAddress[epochHeight].length; i++) {
+            totalAllocation[epochActiveAddress[epochHeight][i]] += epochTotalAllocation[epochHeight].epochClaimableToken / (epochTotalAllocation[epochHeight].epochShares - shares[epochActiveAddress[epochHeight][i]][epochHeight].epochShares);
         }
     }
 
@@ -99,7 +100,11 @@ contract Distributor {
         uint sharesForLock = (amount * ((unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : unlockTimestamp) - (lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : lockTimestamp))) / 10**5;
         shares[_address][epochHeight].epochShares += sharesForLock;
         epochTotalAllocation[epochHeight].epochShares += sharesForLock;
-        epochActiveAddress.push(_address);
+
+        if (!isActive[epochHeight][_address]) {
+            isActive[epochHeight][_address] = true;
+            epochActiveAddress[epochHeight].push(_address);
+        }
     }
 
     function claimDividends(uint amount) external {
