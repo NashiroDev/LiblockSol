@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     // Init section
 
-    address internal admin;
+    address private admin;
 
     // setting initial destination wallet address for fees
     address private devWallet =

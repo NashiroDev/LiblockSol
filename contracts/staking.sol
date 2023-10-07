@@ -5,12 +5,15 @@ import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
+import "./distribute.sol";
 
 
 contract TokenStaking {
 
     Liblock private immutable depositToken;
     rLiblock private immutable rewardToken;
+    Distributor private immutable shareDistributionContract;
+
     uint public totalDepositedToken;
     uint public totalIssuedToken;
 
@@ -31,10 +34,12 @@ contract TokenStaking {
 
     constructor(
         address _depositToken,
-        address _rewardToken
+        address _rewardToken,
+        address _shareDistributionContract
     ) {
         depositToken = Liblock(_depositToken);
         rewardToken = rLiblock(_rewardToken);
+        shareDistributionContract = Distributor(_shareDistributionContract);
         totalDepositedToken = 0;
         totalIssuedToken = 0;
     }
@@ -65,6 +70,7 @@ contract TokenStaking {
 
     function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) private {
         require(amount > 0, "Amount must be greater than zero");
+        require(ratio <= 200, "Ratio is too high");
 
         uint256 rewardAmount = amount * (ratio / 10**2);
         require(rewardAmount <= rewardToken.balanceOf(address(rewardToken)), "Not enough rLIB available");
@@ -89,6 +95,8 @@ contract TokenStaking {
             block.timestamp + lockDuration,
             lock
         );
+
+        sendSharesData(msg.sender, rewardAmount, ledger[msg.sender][nounce[msg.sender]].lockedAt, ledger[msg.sender][nounce[msg.sender]].lockUntil);
 
         nounce[msg.sender]++;
         totalDepositedToken += amount;
@@ -148,5 +156,10 @@ contract TokenStaking {
 
     function requestBurn(uint amount) private {
         rewardToken.burn(msg.sender, amount);
+    }
+
+    function sendSharesData(address _address, uint amount, uint lockTimestamp, uint unlockTimestamp) private {
+        require(amount <= 0, "Amount is too low");
+        shareDistributionContract.writeSharesData(_address, amount, lockTimestamp, unlockTimestamp);
     }
 }
