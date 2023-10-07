@@ -38,9 +38,6 @@ contract Distributor {
         uint epochShares;
         uint epochClaimableToken;
     }
-    // ? balance * (lockedTimeInEpoch = nextDistributionTimestamp - lockedTimestamp) 
-    // sum(ABOVE) for each lock for address
-    //distrib is %(address) of the sum of all the lock during the period
 
     constructor(address _feeGeneratingToken) {
         feeGeneratingToken = Liblock(_feeGeneratingToken);
@@ -76,7 +73,8 @@ contract Distributor {
 
         // => Need arrayified info for each writing where each address => their shares
         // => Then new function updateAddressDividends() private => for address in address[] --> totalAllocation[address] += epochTotalAllocation[epochHeight] / shares[address][epochHeight].epochShares
-        
+        updateAddressDividends();
+
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 15 days;
         epochHeight++;
@@ -84,7 +82,7 @@ contract Distributor {
 
     function updateAddressDividends() private { // trouver bon ratio pour la partage du pool
         for (uint i = 0; i <= epochActiveAddress[epochHeight].length; i++) {
-            totalAllocation[epochActiveAddress[epochHeight][i]] += epochTotalAllocation[epochHeight].epochClaimableToken / (epochTotalAllocation[epochHeight].epochShares - shares[epochActiveAddress[epochHeight][i]][epochHeight].epochShares);
+            totalAllocation[epochActiveAddress[epochHeight][i]] += epochTotalAllocation[epochHeight].epochClaimableToken * ((shares[epochActiveAddress[epochHeight][i]][epochHeight].epochShares / epochTotalAllocation[epochHeight].epochShares)*100);
         }
     }
 
