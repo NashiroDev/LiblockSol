@@ -17,7 +17,7 @@ contract Distributor {
     mapping(address => mapping(uint => Allocation)) private currentAllocation;
 
     // track epoch total token to claim and yet to be claimed
-    mapping(uint => Epoch) private epochTotalAllocation;
+    mapping(uint => uint) private epochTotalAllocation;
 
     // track address shares and claimable tokens for an epoch
     mapping(address => mapping(uint => Shares)) private shares;
@@ -29,11 +29,6 @@ contract Distributor {
         uint amount;
         uint lockTimestamp;
         uint unlockTimestamp;
-    } 
-
-    struct Epoch {
-        uint totalEpochTokenClaimable;
-        uint totalUnclaimedToken;
     }
 
     struct Shares {
@@ -70,8 +65,14 @@ contract Distributor {
 
     function updateEpoch() private {
         require(nextDistributionTimestamp <= block.timestamp, "Not time for new epoch");
+        uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
         // execute distribution here
+        epochTotalAllocation[epochHeight] = epochEndBalance - totalUnclaimed; // get total amount to distribute from this epoch
+        totalUnclaimed += epochTotalAllocation[epochHeight]; // update total amount claimable for every previous epoch
+
+        // => Need arrayified info for each writing where each address => their shares
+        // => Then new function updateAddressDividends() private => for address in address[] --> totalAllocation[address] += epochTotalAllocation[epochHeight] / shares[address][epochHeight].epochShares
         
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 15 days;
