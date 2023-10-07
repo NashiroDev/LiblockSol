@@ -2,32 +2,50 @@
 pragma solidity ^0.8.19;
 
 import "./LIB.sol";
-import "./rLIB.sol";
 
 contract Distributor {
     Liblock private immutable feeGeneratingToken;
-    rLiblock private immutable shareToken;
 
     address private admin;
 
     uint private nextDistributionTimestamp;
     uint private lastDistributionTimestamp;
+    uint private epochHeight;
+    uint private totalUnclaimed;
 
+    // track address locks
     mapping(address => mapping(uint => Allocation)) private currentAllocation;
-    mapping(address => uint) private epochShares;
+
+    // track epoch total token to claim and yet to be claimed
+    mapping(uint => Epoch) private epochTotalAllocation;
+
+    // track address shares and claimable tokens for an epoch
+    mapping(address => mapping(uint => Shares)) private shares;
+
+    // track address allocation yet to be claimed accross all epoch
+    mapping(address => uint) private totalAllocation;
 
     struct Allocation {
         uint amount;
         uint lockTimestamp;
         uint unlockTimestamp;
     } 
+
+    struct Epoch {
+        uint totalEpochTokenClaimable;
+        uint totalUnclaimedToken;
+    }
+
+    struct Shares {
+        uint epochShares;
+        uint epochClaimableToken;
+    }
     // ? balance * (lockedTimeInEpoch = nextDistributionTimestamp - lockedTimestamp) 
     // sum(ABOVE) for each lock for address
     //distrib is %(address) of the sum of all the lock during the period
 
-    constructor(address _feeGeneratingToken, address _shareToken) {
+    constructor(address _feeGeneratingToken) {
         feeGeneratingToken = Liblock(_feeGeneratingToken);
-        shareToken = rLiblock(_shareToken);
         admin = msg.sender;
     }
 
@@ -50,15 +68,36 @@ contract Distributor {
 
     // contract exclusive functions
 
-    function clock() external {
-        require(nextDistributionTimestamp <= block.timestamp);
+    function updateEpoch() private {
+        require(nextDistributionTimestamp <= block.timestamp, "Not time for new epoch");
 
-        // execute 
-
-        nextDistributionTimestamp = block.timestamp + 15 days;
+        // execute distribution here
+        
+        lastDistributionTimestamp = nextDistributionTimestamp;
+        nextDistributionTimestamp = lastDistributionTimestamp + 15 days;
+        epochHeight++;
     }
 
-    function writeSharesData(address _address, uint amount, uint lockTimestamp, uint unlockTimestamp) external onlyAdmin {
-        //todo
+    function writeSharesData(address _address, uint nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) external onlyAdmin {
+        if (nextDistributionTimestamp <= block.timestamp) {
+            updateEpoch();
+        }
+        currentAllocation[_address][nounce] = Allocation (
+            amount,
+            lockTimestamp,
+            unlockTimestamp
+        );
+        uint SharesForLock = (amount * ((unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : unlockTimestamp) - (lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : lockTimestamp))) / 10**5;
+        shares[_address][epochHeight].epochShares += SharesForLock;
+    }
+
+    function claimDividends(uint amount) external {
+        require(amount <= totalUnclaimed, "Not enough tokens to claim");
+        require(amount <= totalAllocation[msg.sender], "Amount exceeds address allocation");
+
+        totalAllocation[msg.sender] -= amount;
+        totalUnclaimed -= amount;
+
+        feeGeneratingToken.transferFrom(address(this), msg.sender, amount);
     }
 }

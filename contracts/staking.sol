@@ -96,7 +96,7 @@ contract TokenStaking {
             lock
         );
 
-        sendSharesData(msg.sender, rewardAmount, ledger[msg.sender][nounce[msg.sender]].lockedAt, ledger[msg.sender][nounce[msg.sender]].lockUntil);
+        sendSharesData(msg.sender, nounce[msg.sender], rewardAmount, ledger[msg.sender][nounce[msg.sender]].lockedAt, ledger[msg.sender][nounce[msg.sender]].lockUntil);
 
         nounce[msg.sender]++;
         totalDepositedToken += amount;
@@ -158,8 +158,8 @@ contract TokenStaking {
         rewardToken.burn(msg.sender, amount);
     }
 
-    function sendSharesData(address _address, uint amount, uint lockTimestamp, uint unlockTimestamp) private {
+    function sendSharesData(address _address, uint _nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) private {
         require(amount <= 0, "Amount is too low");
-        shareDistributionContract.writeSharesData(_address, amount, lockTimestamp, unlockTimestamp);
+        shareDistributionContract.writeSharesData(_address, _nounce, amount, lockTimestamp, unlockTimestamp);
     }
 }
