@@ -42,6 +42,7 @@ contract Distributor {
     constructor(address _feeGeneratingToken) {
         feeGeneratingToken = Liblock(_feeGeneratingToken);
         admin = msg.sender;
+        nextDistributionTimestamp = block.timestamp + 600;
     }
 
     // admin related stuff

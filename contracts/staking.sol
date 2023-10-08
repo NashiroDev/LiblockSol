@@ -44,36 +44,37 @@ contract TokenStaking {
         totalIssuedToken = 0;
     }
 
-    function lock17(uint amount) external {
+    function lock17(uint amount) external payable {
         lockTokens(amount, 100, 17 days);
     }
 
-    function lock31(uint amount) external {
+    function lock31(uint amount) external payable {
         lockTokens(amount, 105, 31 days);
     }
 
-    function lock93(uint amount) external {
+    function lock93(uint amount) external payable {
         lockTokens(amount, 125, 93 days);
     }
 
-    function lock186(uint amount) external {
+    function lock186(uint amount) external payable {
         lockTokens(amount, 145, 186 days);
     }
 
-    function lock279(uint amount) external {
+    function lock279(uint amount) external payable {
         lockTokens(amount, 160, 279 days);
     }
 
-    function lock365(uint amount) external {
+    function lock365(uint amount) external payable {
         lockTokens(amount, 170, 365 days);
     }
 
     function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) private {
         require(amount > 0, "Amount must be greater than zero");
         require(ratio <= 200, "Ratio is too high");
+        require(depositToken.allowance(msg.sender, address(this)) >= amount, "Not enough LIB allowance");
 
         uint256 rewardAmount = amount * (ratio / 10**2);
-        require(rewardAmount <= rewardToken.balanceOf(address(rewardToken)), "Not enough rLIB available");
+        // require(rewardAmount <= rewardToken.totalSupply() - rewardToken.maxSupply(), "Not enough rLIB available");
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
