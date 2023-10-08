@@ -12,14 +12,14 @@ contract TokenStaking {
     rLiblock private immutable rewardToken;
     Distributor private immutable shareDistributionContract;
 
-    uint public totalDepositedToken;
-    uint public totalIssuedToken;
+    uint private totalDepositedToken;
+    uint private totalIssuedToken;
 
     event TokensLocked(address indexed user, uint amount);
     event TokensWithdrawn(address indexed user, uint amount);
 
     mapping(address => mapping(uint => Ledger)) public ledger;
-    mapping(address => uint) public nounce;
+    mapping(address => uint) private nounce;
 
     struct Ledger {
         uint amountDeposited;
@@ -230,5 +230,17 @@ contract TokenStaking {
             lockTimestamp,
             unlockTimestamp
         );
+    }
+
+    function getContracts() external view returns(address _depositToken, address _rewardToken, address _shareDistributionContract) {
+        return (address(depositToken), address(rewardToken), address(shareDistributionContract));
+    }
+
+    function getTotalDepositedIssuedToken() external view returns(uint depositedTokens, uint issuedTokens) {
+        return (totalDepositedToken, totalIssuedToken);
+    }
+
+    function getAddressNounce(address _address) external view returns(uint _nounce) {
+        return nounce[_address];
     }
 }
