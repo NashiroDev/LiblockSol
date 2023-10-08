@@ -14,7 +14,7 @@ contract Distributor {
     uint private totalUnclaimed;
 
     // track address locks
-    mapping(address => mapping(uint => Allocation)) private epochAllocation;
+    mapping(address => mapping(uint => mapping(uint => Allocation))) private epochAllocation;
     mapping(address => mapping(uint => uint)) private nounce;
 
     // track epoch total token to claim and yet to be claimed
@@ -89,9 +89,9 @@ contract Distributor {
             address _address = epochActiveAddress[epochHeight][i];
 
             shares[_address][epochHeight].epochClaimableToken =
-                epochTotalAllocation[epochHeight].epochClaimableToken *
-                (shares[_address][epochHeight].epochShares /
-                    epochTotalAllocation[epochHeight].epochShares);
+                (epochTotalAllocation[epochHeight].epochClaimableToken *
+                ((shares[_address][epochHeight].epochShares /
+                    epochTotalAllocation[epochHeight].epochShares)* 10**20)) / 10**20;
             totalAllocation[_address] += shares[_address][epochHeight]
                 .epochClaimableToken;
             nextEpochInheritance(_address);
@@ -101,14 +101,13 @@ contract Distributor {
     function nextEpochInheritance(address _address) private {
         for (uint x = 0; x <= nounce[_address][epochHeight]; x++) {
             if (
-                epochAllocation[_address][x].unlockTimestamp <
+                epochAllocation[_address][epochHeight][x].unlockTimestamp <
                 nextDistributionTimestamp
             ) {
-                nounce[_address][epochHeight+1] += 1;
-                uint _amount = epochAllocation[_address][x].amount;
-                uint _unlockTimestamp = epochAllocation[_address][x]
+                uint _amount = epochAllocation[_address][epochHeight][x].amount;
+                uint _unlockTimestamp = epochAllocation[_address][epochHeight][x]
                     .unlockTimestamp;
-                uint _lockTimestamp = epochAllocation[_address][x]
+                uint _lockTimestamp = epochAllocation[_address][epochHeight][x]
                     .lockTimestamp;
                 uint sharesForLock = (_amount *
                     ((
@@ -116,14 +115,16 @@ contract Distributor {
                             ? nextDistributionTimestamp
                             : _unlockTimestamp
                     ) -
-                        (
-                            _lockTimestamp <= lastDistributionTimestamp
-                                ? lastDistributionTimestamp
-                                : _lockTimestamp
-                        ))) / 10 ** 5;
+                    (
+                        _lockTimestamp <= lastDistributionTimestamp
+                            ? lastDistributionTimestamp
+                            : _lockTimestamp
+                    ))) / 10 ** 5;
                 shares[_address][epochHeight + 1].epochShares += sharesForLock;
                 epochTotalAllocation[epochHeight + 1]
                     .epochShares += sharesForLock;
+
+                nounce[_address][epochHeight+1]++;
 
                 if (!isActive[epochHeight + 1][_address]) {
                     isActive[epochHeight + 1][_address] = true;
@@ -143,9 +144,8 @@ contract Distributor {
             nextDistributionTimestamp >= block.timestamp,
             "Need to update current epoch"
         );
-        nounce[_address][epochHeight] += 1;
 
-        epochAllocation[_address][nounce[_address][epochHeight]] = Allocation(
+        epochAllocation[_address][epochHeight][nounce[_address][epochHeight]] = Allocation(
             amount,
             _lockTimestamp,
             _unlockTimestamp
@@ -163,6 +163,7 @@ contract Distributor {
                 ))) / 10 ** 5;
         shares[_address][epochHeight].epochShares += sharesForLock;
         epochTotalAllocation[epochHeight].epochShares += sharesForLock;
+        nounce[_address][epochHeight]++;
 
         if (!isActive[epochHeight][_address]) {
             isActive[epochHeight][_address] = true;
@@ -205,6 +206,7 @@ contract Distributor {
 
     function getEpochAllocation(
         address _address,
+        uint _epoch,
         uint _nounce
     )
         external
@@ -212,28 +214,28 @@ contract Distributor {
         returns (uint amount, uint lockTimestamp, uint unlockTimestamp)
     {
         return (
-            epochAllocation[_address][_nounce].amount,
-            epochAllocation[_address][_nounce].lockTimestamp,
-            epochAllocation[_address][_nounce].unlockTimestamp
+            epochAllocation[_address][_epoch][_nounce].amount,
+            epochAllocation[_address][_epoch][_nounce].lockTimestamp,
+            epochAllocation[_address][_epoch][_nounce].unlockTimestamp
         );
     }
 
     function getEpochShares(
-        uint _nounce
+        uint _epoch
     ) external view returns (uint epochTotalShares, uint epochTotalTokens) {
         return (
-            epochTotalAllocation[_nounce].epochShares,
-            epochTotalAllocation[_nounce].epochClaimableToken
+            epochTotalAllocation[_epoch].epochShares,
+            epochTotalAllocation[_epoch].epochClaimableToken
         );
     }
 
     function getAddressEpochShares(
         address _address,
-        uint _nounce
+        uint _epoch
     ) external view returns (uint epochShares, uint epochTokens) {
         return (
-            shares[_address][_nounce].epochShares,
-            shares[_address][_nounce].epochClaimableToken
+            shares[_address][_epoch].epochShares,
+            shares[_address][_epoch].epochClaimableToken
         );
     }
 
