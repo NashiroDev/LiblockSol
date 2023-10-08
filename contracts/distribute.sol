@@ -15,6 +15,7 @@ contract Distributor {
 
     // track address locks
     mapping(address => mapping(uint => Allocation)) private epochAllocation;
+    mapping(address => uint) private nounce;
 
     // track epoch total token to claim and yet to be claimed
     mapping(uint => Shares) private epochTotalAllocation;
@@ -63,7 +64,7 @@ contract Distributor {
 
     // contract exclusive functions
 
-    function updateEpoch() private {
+    function updateEpoch() external {
         require(
             nextDistributionTimestamp <= block.timestamp,
             "Not time for new epoch"
@@ -87,18 +88,22 @@ contract Distributor {
 
     function updateAddressDividends() private {
         // trouver bon ratio pour la partage du pool
-        for (uint i = 0; i <= epochActiveAddress[epochHeight].length; i++) {
-            totalAllocation[epochActiveAddress[epochHeight][i]] +=
+        for (uint i = 0; i < epochActiveAddress[epochHeight].length; i++) {
+            address _address = epochActiveAddress[epochHeight][i];
+            // for (uint i = 0; i < activeAllocationCounter[_address]; i++) {
+            //      for next epoch ?
+            // }
+            shares[_address][epochHeight].epochClaimableToken +=
                 epochTotalAllocation[epochHeight].epochClaimableToken *
-                ((shares[epochActiveAddress[epochHeight][i]][epochHeight]
+                ((shares[_address][epochHeight]
                     .epochShares /
                     epochTotalAllocation[epochHeight].epochShares) * 100);
+            totalAllocation[_address] += shares[_address][epochHeight].epochClaimableToken;
         }
     }
 
     function writeSharesData(
         address _address,
-        uint nounce,
         uint amount,
         uint lockTimestamp,
         uint unlockTimestamp
@@ -107,8 +112,9 @@ contract Distributor {
             nextDistributionTimestamp >= block.timestamp,
             "Need to update current epoch"
         );
+        nounce[_address] += 1;
 
-        epochAllocation[_address][nounce] = Allocation(
+        epochAllocation[_address][nounce[_address]] = Allocation(
             amount,
             lockTimestamp,
             unlockTimestamp
@@ -156,6 +162,11 @@ contract Distributor {
 
     function getFeeTokenAddress() external view returns (address tokenAddress) {
         return address(feeGeneratingToken);
+    }
+    
+    function getEpochTimeLeft() external view returns(uint _seconds) {
+        require((nextDistributionTimestamp - block.timestamp) >= 0, "epoch need to be updated");
+        return nextDistributionTimestamp - block.timestamp;
     }
 
     function getEpochAllocation(

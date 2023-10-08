@@ -42,6 +42,14 @@ contract TokenStaking {
         totalIssuedToken = 0;
     }
 
+    function lockTest(uint amount) external {
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
+        lockTokens(amount, 100, 500);
+    }
+
     function lock17(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -129,7 +137,6 @@ contract TokenStaking {
 
         sendSharesData(
             msg.sender,
-            nounce[msg.sender],
             rewardAmount,
             ledger[msg.sender][nounce[msg.sender]].lockedAt,
             ledger[msg.sender][nounce[msg.sender]].lockUntil
@@ -183,7 +190,7 @@ contract TokenStaking {
             _nounce <= nounce[_address],
             "This nounce do not exist for this address"
         );
-        return ledger[_address][_nounce].lockUntil - block.timestamp;
+        return (ledger[_address][_nounce].lockUntil - block.timestamp) > 0 ? ledger[_address][_nounce].lockUntil - block.timestamp : 0;
     }
 
     function requestNewFeeExcludedAddress(
@@ -217,7 +224,6 @@ contract TokenStaking {
 
     function sendSharesData(
         address _address,
-        uint _nounce,
         uint amount,
         uint lockTimestamp,
         uint unlockTimestamp
@@ -225,7 +231,6 @@ contract TokenStaking {
         require(amount >= 0, "Amount is too low");
         shareDistributionContract.writeSharesData(
             _address,
-            _nounce,
             amount,
             lockTimestamp,
             unlockTimestamp

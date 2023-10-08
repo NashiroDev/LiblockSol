@@ -14,8 +14,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     // setting initial destination wallet address for fees
     address private devWallet =
         payable(0x05525CdE529C5212F1eaB7f033146C8CC103cd5D);
-    address private distributionContract =
-        payable(0x3a15BBaeCdBb123bd30583C6249D2d1dd13e0709);
+    address private distributionContract;
     address private liblockFondationWallet;
 
     // setting initial shares of generated fees
@@ -31,7 +30,6 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         _mint(address(msg.sender), 500000 * 10 ** decimals());
         admin = address(msg.sender);
         liblockFondationWallet = admin;
-        excludedFromFee[msg.sender] = true;
     }
 
     // admin related stuff
@@ -153,6 +151,12 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         } else {
             delete excludedFromFee[_address];
         }
+    }
+
+    function setDistributionContract(address _address) external onlyAdmin {
+        require(_address != address(0), "Can not set address 0");
+        require(_address != address(this), "Can not set this contract");
+        distributionContract = address(_address);
     }
 
     // fees are currently applied to the transfer and tranferFrom function
