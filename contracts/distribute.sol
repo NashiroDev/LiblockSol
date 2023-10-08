@@ -93,11 +93,11 @@ contract Distributor {
             // for (uint i = 0; i < activeAllocationCounter[_address]; i++) {
             //      for next epoch ?
             // }
-            shares[_address][epochHeight].epochClaimableToken +=
+            shares[_address][epochHeight].epochClaimableToken =
                 epochTotalAllocation[epochHeight].epochClaimableToken *
-                ((shares[_address][epochHeight]
+                (shares[_address][epochHeight]
                     .epochShares /
-                    epochTotalAllocation[epochHeight].epochShares) * 100);
+                    epochTotalAllocation[epochHeight].epochShares);
             totalAllocation[_address] += shares[_address][epochHeight].epochClaimableToken;
         }
     }
