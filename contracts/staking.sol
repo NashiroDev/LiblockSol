@@ -45,26 +45,32 @@ contract TokenStaking {
     }
 
     function lock17(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 100, 17 days);
     }
 
     function lock31(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 105, 31 days);
     }
 
     function lock93(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 125, 93 days);
     }
 
     function lock186(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 145, 186 days);
     }
 
     function lock279(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 160, 279 days);
     }
 
     function lock365(uint amount) external payable {
+        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
         lockTokens(amount, 170, 365 days);
     }
 
@@ -74,15 +80,12 @@ contract TokenStaking {
         require(depositToken.allowance(msg.sender, address(this)) >= amount, "Not enough LIB allowance");
 
         uint256 rewardAmount = amount * (ratio / 10**2);
-        // require(rewardAmount <= rewardToken.totalSupply() - rewardToken.maxSupply(), "Not enough rLIB available");
 
         TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
 
-        // requestAllowance(rewardAmount);
         requestNewFeeExcludedAddress(address(lock), true);
 
         depositToken.transferFrom(msg.sender, address(lock), amount);
-        // rewardToken.transferFrom(address(rewardToken), msg.sender, rewardAmount);
         requestMint(rewardAmount);
 
         requestDelegationDeposit(address(lock), msg.sender);
@@ -117,7 +120,6 @@ contract TokenStaking {
 
         lock.release();
         requestBurn(amountIssued);
-        // rewardToken.transferFrom(msg.sender, address(rewardToken), amountIssued);
 
         delete ledger[msg.sender][id];
         requestNewFeeExcludedAddress(address(lock), false);
@@ -131,7 +133,8 @@ contract TokenStaking {
     }
 
     // get the lock time remaining in seconds
-    function getLockTimeRemaining(address _address, uint _nounce) external view returns(uint timeRemaining) {
+    function getLockTimeRemaining(address _address, uint _nounce) external view returns(uint) {
+        require(_nounce <= nounce[_address], "This nounce do not exist for this address");
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 

@@ -88,9 +88,8 @@ contract Distributor {
     }
 
     function writeSharesData(address _address, uint nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) external onlyAdmin {
-        if (nextDistributionTimestamp <= block.timestamp) {
-            updateEpoch();
-        }
+        require(nextDistributionTimestamp >= block.timestamp, "Need to update current epoch");
+
         currentAllocation[_address][nounce] = Allocation (
             amount,
             lockTimestamp,

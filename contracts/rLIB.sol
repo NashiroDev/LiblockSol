@@ -58,7 +58,7 @@ contract rLiblock is
     }
 
     function mint(address to, uint256 amount) external onlyAdmin {
-        require(totalSupply() + amount >= maxSupply);
+        require(totalSupply() + amount <= maxSupply);
         _mint(to, amount);
     }
 
