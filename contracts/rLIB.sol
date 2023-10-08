@@ -6,18 +6,13 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
-contract rLiblock is
-    ERC20,
-    ERC20Burnable,
-    ERC20Permit,
-    ERC20Votes
-{
+contract rLiblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     address internal admin;
     uint256 public maxSupply;
 
     constructor() ERC20("rLiblock", "rLIB") ERC20Permit("rLiblock") {
         admin = address(msg.sender);
-        maxSupply = 150000000 * 10**decimals();
+        maxSupply = 150000000 * 10 ** decimals();
     }
 
     modifier onlyAdmin() {
@@ -43,22 +38,25 @@ contract rLiblock is
         super._afterTokenTransfer(from, to, amount);
     }
 
-    function _mint(address to, uint256 amount)
-        internal
-        override(ERC20, ERC20Votes)
-    {
+    function _mint(
+        address to,
+        uint256 amount
+    ) internal override(ERC20, ERC20Votes) {
         super._mint(to, amount);
     }
 
-    function _burn(address account, uint256 amount)
-        internal
-        override(ERC20, ERC20Votes)
-    {
+    function _burn(
+        address account,
+        uint256 amount
+    ) internal override(ERC20, ERC20Votes) {
         super._burn(account, amount);
     }
 
     function mint(address to, uint256 amount) external onlyAdmin {
-        require(totalSupply() + amount <= maxSupply, "Can not mint new rLIB for now");
+        require(
+            totalSupply() + amount <= maxSupply,
+            "Can not mint new rLIB for now"
+        );
         _mint(to, amount);
     }
 
@@ -66,7 +64,10 @@ contract rLiblock is
         _burn(account, amount);
     }
 
-    function delegateFrom(address delegator, address delegatee) external onlyAdmin {
+    function delegateFrom(
+        address delegator,
+        address delegatee
+    ) external onlyAdmin {
         require(delegator != address(0), "Delegator can't be zero address");
         require(delegator != address(this), "Illegal");
         super._delegate(delegator, delegatee);

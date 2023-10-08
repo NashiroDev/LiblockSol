@@ -13,9 +13,8 @@ contract Distributor {
     uint private epochHeight;
     uint private totalUnclaimed;
 
-    
     // track address locks
-    mapping(address => mapping(uint => Allocation)) private currentAllocation;
+    mapping(address => mapping(uint => Allocation)) private epochAllocation;
 
     // track epoch total token to claim and yet to be claimed
     mapping(uint => Shares) private epochTotalAllocation;
@@ -65,11 +64,16 @@ contract Distributor {
     // contract exclusive functions
 
     function updateEpoch() private {
-        require(nextDistributionTimestamp <= block.timestamp, "Not time for new epoch");
+        require(
+            nextDistributionTimestamp <= block.timestamp,
+            "Not time for new epoch"
+        );
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
         // execute distribution here
-        epochTotalAllocation[epochHeight].epochClaimableToken = epochEndBalance - totalUnclaimed; // get total amount to distribute from this epoch
+        epochTotalAllocation[epochHeight].epochClaimableToken =
+            epochEndBalance -
+            totalUnclaimed; // get total amount to distribute from this epoch
         totalUnclaimed += epochTotalAllocation[epochHeight].epochClaimableToken; // update total amount claimable for every previous epoch
 
         // => Need arrayified info for each writing where each address => their shares
@@ -81,21 +85,45 @@ contract Distributor {
         epochHeight++;
     }
 
-    function updateAddressDividends() private { // trouver bon ratio pour la partage du pool
+    function updateAddressDividends() private {
+        // trouver bon ratio pour la partage du pool
         for (uint i = 0; i <= epochActiveAddress[epochHeight].length; i++) {
-            totalAllocation[epochActiveAddress[epochHeight][i]] += epochTotalAllocation[epochHeight].epochClaimableToken * ((shares[epochActiveAddress[epochHeight][i]][epochHeight].epochShares / epochTotalAllocation[epochHeight].epochShares)*100);
+            totalAllocation[epochActiveAddress[epochHeight][i]] +=
+                epochTotalAllocation[epochHeight].epochClaimableToken *
+                ((shares[epochActiveAddress[epochHeight][i]][epochHeight]
+                    .epochShares /
+                    epochTotalAllocation[epochHeight].epochShares) * 100);
         }
     }
 
-    function writeSharesData(address _address, uint nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) external onlyAdmin {
-        require(nextDistributionTimestamp >= block.timestamp, "Need to update current epoch");
+    function writeSharesData(
+        address _address,
+        uint nounce,
+        uint amount,
+        uint lockTimestamp,
+        uint unlockTimestamp
+    ) external onlyAdmin {
+        require(
+            nextDistributionTimestamp >= block.timestamp,
+            "Need to update current epoch"
+        );
 
-        currentAllocation[_address][nounce] = Allocation (
+        epochAllocation[_address][nounce] = Allocation(
             amount,
             lockTimestamp,
             unlockTimestamp
         );
-        uint sharesForLock = (amount * ((unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : unlockTimestamp) - (lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : lockTimestamp))) / 10**5;
+        uint sharesForLock = (amount *
+            ((
+                unlockTimestamp >= nextDistributionTimestamp
+                    ? nextDistributionTimestamp
+                    : unlockTimestamp
+            ) -
+                (
+                    lockTimestamp <= lastDistributionTimestamp
+                        ? lastDistributionTimestamp
+                        : lockTimestamp
+                ))) / 10 ** 5;
         shares[_address][epochHeight].epochShares += sharesForLock;
         epochTotalAllocation[epochHeight].epochShares += sharesForLock;
 
@@ -107,11 +135,66 @@ contract Distributor {
 
     function claimDividends(uint amount) external {
         require(amount <= totalUnclaimed, "Not enough tokens to claim");
-        require(amount <= totalAllocation[msg.sender], "Amount exceeds address allocation");
+        require(
+            amount <= totalAllocation[msg.sender],
+            "Amount exceeds address allocation"
+        );
 
         totalAllocation[msg.sender] -= amount;
         totalUnclaimed -= amount;
 
         feeGeneratingToken.transferFrom(address(this), msg.sender, amount);
+    }
+
+    function getEpochHeight() external view returns (uint epoch) {
+        return epochHeight;
+    }
+
+    function getTotalUnclaimed() external view returns (uint unclaimed) {
+        return totalUnclaimed;
+    }
+
+    function getFeeTokenAddress() external view returns (address tokenAddress) {
+        return address(feeGeneratingToken);
+    }
+
+    function getEpochAllocation(
+        address _address,
+        uint _nounce
+    )
+        external
+        view
+        returns (uint amount, uint lockTimestamp, uint unlockTimestamp)
+    {
+        return (
+            epochAllocation[_address][_nounce].amount,
+            epochAllocation[_address][_nounce].lockTimestamp,
+            epochAllocation[_address][_nounce].unlockTimestamp
+        );
+    }
+
+    function getEpochShares(
+        uint _nounce
+    ) external view returns (uint epochTotalShares, uint epochTotalTokens) {
+        return (
+            epochTotalAllocation[_nounce].epochShares,
+            epochTotalAllocation[_nounce].epochClaimableToken
+        );
+    }
+
+    function getAddressEpochShares(
+        address _address,
+        uint _nounce
+    ) external view returns (uint epochShares, uint epochTokens) {
+        return (
+            shares[_address][_nounce].epochShares,
+            shares[_address][_nounce].epochClaimableToken
+        );
+    }
+
+    function getAddressClaimableTokens(
+        address _address
+    ) external view returns (uint amount) {
+        return totalAllocation[_address];
     }
 }

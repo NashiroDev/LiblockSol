@@ -5,7 +5,6 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
 
 contract Governance {
-
     AggregatorV3Interface private dataFeed;
 
     constructor(address _libToken) {
@@ -21,8 +20,8 @@ contract Governance {
             0,
             block.timestamp,
             block.timestamp + 1 days,
-            10*10**18,
-            10*10**8
+            10 * 10 ** 18,
+            10 * 10 ** 8
         );
         dataFeed = AggregatorV3Interface(
             0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41
@@ -66,14 +65,15 @@ contract Governance {
 
     mapping(address => mapping(uint => bool)) public voted;
 
-    modifier onlyAdmin(){
+    modifier onlyAdmin() {
         require(isAdmin(msg.sender));
         _;
     }
 
     modifier hasEnoughDelegatedTokens() {
         require(
-            libToken.getVotes(msg.sender) > balancing[balancingCount].epochFloor,
+            libToken.getVotes(msg.sender) >
+                balancing[balancingCount].epochFloor,
             "Insufficient delegated tokens"
         );
         _;
@@ -91,14 +91,12 @@ contract Governance {
         _;
     }
 
-    function setAdmin(address account) private
-    {
+    function setAdmin(address account) private {
         require(account != address(0), "Invalid address");
         admin = account;
     }
 
-    function isAdmin(address account) private view returns(bool)
-    {
+    function isAdmin(address account) private view returns (bool) {
         return admin == account;
     }
 
@@ -107,16 +105,19 @@ contract Governance {
         balancingCount++;
 
         (
-            /* uint80 roundID */,
-            int answer,
-            /* uint startedAt */,
-            uint timeStamp,
-            /* uint80 answeredInRound */
-        ) = dataFeed.latestRoundData();
+            ,
+            /* uint80 roundID */ int answer,
+            ,
+            /* uint startedAt */ uint timeStamp,
 
-        uint nextPriceTaget = balancing[balancingCount-1].epochPriceTarget + balancing[balancingCount-1].epochPriceTarget / 2000;
+        ) = /* uint80 answeredInRound */
+            dataFeed.latestRoundData();
 
-        uint epochFloor = (nextPriceTaget*10**18 / uint(answer));
+        uint nextPriceTaget = balancing[balancingCount - 1].epochPriceTarget +
+            balancing[balancingCount - 1].epochPriceTarget /
+            2000;
+
+        uint epochFloor = ((nextPriceTaget * 10 ** 18) / uint(answer));
 
         balancing[balancingCount] = Balancing(
             balancingCount,
@@ -209,21 +210,20 @@ contract Governance {
 
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
-        
-        if (votePower > maxPower)
-        {
+
+        if (votePower > maxPower) {
             if (
-            keccak256(abi.encodePacked(_vote)) ==
-            keccak256(abi.encodePacked("yes"))
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("yes"))
             ) {
                 proposal.yesVotes += maxPower;
-                proposal.abstainVotes += votePower-maxPower;
+                proposal.abstainVotes += votePower - maxPower;
             } else if (
                 keccak256(abi.encodePacked(_vote)) ==
                 keccak256(abi.encodePacked("no"))
             ) {
                 proposal.noVotes += maxPower;
-                proposal.abstainVotes += votePower-maxPower;
+                proposal.abstainVotes += votePower - maxPower;
             } else if (
                 keccak256(abi.encodePacked(_vote)) ==
                 keccak256(abi.encodePacked("abstain"))
@@ -232,8 +232,8 @@ contract Governance {
             }
         } else {
             if (
-            keccak256(abi.encodePacked(_vote)) ==
-            keccak256(abi.encodePacked("yes"))
+                keccak256(abi.encodePacked(_vote)) ==
+                keccak256(abi.encodePacked("yes"))
             ) {
                 proposal.yesVotes += votePower;
             } else if (
@@ -286,9 +286,10 @@ contract Governance {
         }
     }
 
-    
-    function nextAlterationBlock() external view returns(uint)
-    {
-        return balancing[balancingCount].blockHeight + ((balancing[balancingCount].nextTimestamp - balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
+    function nextAlterationBlock() external view returns (uint) {
+        return
+            balancing[balancingCount].blockHeight +
+            ((balancing[balancingCount].nextTimestamp -
+                balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
     }
 }

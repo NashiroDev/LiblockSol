@@ -7,9 +7,7 @@ import "./LIB.sol";
 import "./rLIB.sol";
 import "./distribute.sol";
 
-
 contract TokenStaking {
-
     Liblock private immutable depositToken;
     rLiblock private immutable rewardToken;
     Distributor private immutable shareDistributionContract;
@@ -45,43 +43,72 @@ contract TokenStaking {
     }
 
     function lock17(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 100, 17 days);
     }
 
     function lock31(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 105, 31 days);
     }
 
     function lock93(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 125, 93 days);
     }
 
     function lock186(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 145, 186 days);
     }
 
     function lock279(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 160, 279 days);
     }
 
     function lock365(uint amount) external {
-        require(amount <= depositToken.balanceOf(msg.sender), "Not enough tokens");
+        require(
+            amount <= depositToken.balanceOf(msg.sender),
+            "Not enough tokens"
+        );
         lockTokens(amount, 170, 365 days);
     }
 
-    function lockTokens(uint256 amount, uint8 ratio, uint32 lockDuration) private {
+    function lockTokens(
+        uint256 amount,
+        uint8 ratio,
+        uint32 lockDuration
+    ) private {
         require(amount > 0, "Amount must be greater than zero");
         require(ratio <= 200, "Ratio is too high");
-        require(depositToken.allowance(msg.sender, address(this)) >= amount, "Not enough LIB allowance");
+        require(
+            depositToken.allowance(msg.sender, address(this)) >= amount,
+            "Not enough LIB allowance"
+        );
 
-        uint256 rewardAmount = (amount * ratio) / 10**2;
+        uint256 rewardAmount = (amount * ratio) / 10 ** 2;
 
-        TokenTimelock lock = new TokenTimelock(depositToken, msg.sender, block.timestamp + lockDuration);
+        TokenTimelock lock = new TokenTimelock(
+            depositToken,
+            msg.sender,
+            block.timestamp + lockDuration
+        );
 
         requestNewFeeExcludedAddress(address(lock), true);
 
@@ -100,7 +127,13 @@ contract TokenStaking {
             lock
         );
 
-        sendSharesData(msg.sender, nounce[msg.sender], rewardAmount, ledger[msg.sender][nounce[msg.sender]].lockedAt, ledger[msg.sender][nounce[msg.sender]].lockUntil);
+        sendSharesData(
+            msg.sender,
+            nounce[msg.sender],
+            rewardAmount,
+            ledger[msg.sender][nounce[msg.sender]].lockedAt,
+            ledger[msg.sender][nounce[msg.sender]].lockUntil
+        );
 
         nounce[msg.sender]++;
         totalDepositedToken += amount;
@@ -114,9 +147,18 @@ contract TokenStaking {
         uint amountIssued = ledger[msg.sender][id].amountIssued;
         uint amountDeposited = ledger[msg.sender][id].amountDeposited;
 
-        require(rewardToken.allowance(msg.sender, address(this)) >= amountIssued, "Not enough rLIB allowance");
-        require(rewardToken.balanceOf(msg.sender) >= amountIssued, "Not enough rLIB to withdraw");
-        require(address(lock) != address(0), "No tokens locked for this identifier");
+        require(
+            rewardToken.allowance(msg.sender, address(this)) >= amountIssued,
+            "Not enough rLIB allowance"
+        );
+        require(
+            rewardToken.balanceOf(msg.sender) >= amountIssued,
+            "Not enough rLIB to withdraw"
+        );
+        require(
+            address(lock) != address(0),
+            "No tokens locked for this identifier"
+        );
 
         lock.release();
         requestBurn(amountIssued);
@@ -133,24 +175,35 @@ contract TokenStaking {
     }
 
     // get the lock time remaining in seconds
-    function getLockTimeRemaining(address _address, uint _nounce) external view returns(uint) {
-        require(_nounce <= nounce[_address], "This nounce do not exist for this address");
+    function getLockTimeRemaining(
+        address _address,
+        uint _nounce
+    ) external view returns (uint) {
+        require(
+            _nounce <= nounce[_address],
+            "This nounce do not exist for this address"
+        );
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
-    // function requestAllowance(uint amount) private {
-    //     rewardToken.selfApprove(amount);
-    // }
-
-    function requestNewFeeExcludedAddress(address _address, bool _excluded) private {
+    function requestNewFeeExcludedAddress(
+        address _address,
+        bool _excluded
+    ) private {
         depositToken.setFeeExcludedAddress(_address, _excluded);
     }
 
-    function requestDelegationDeposit(address delegator, address delegatee) private {
+    function requestDelegationDeposit(
+        address delegator,
+        address delegatee
+    ) private {
         depositToken.delegateFrom(delegator, delegatee);
     }
 
-    function requestDelegationReward(address delegator, address delegatee) private {
+    function requestDelegationReward(
+        address delegator,
+        address delegatee
+    ) private {
         rewardToken.delegateFrom(delegator, delegatee);
     }
 
@@ -162,8 +215,20 @@ contract TokenStaking {
         rewardToken.burn(msg.sender, amount);
     }
 
-    function sendSharesData(address _address, uint _nounce, uint amount, uint lockTimestamp, uint unlockTimestamp) private {
+    function sendSharesData(
+        address _address,
+        uint _nounce,
+        uint amount,
+        uint lockTimestamp,
+        uint unlockTimestamp
+    ) private {
         require(amount >= 0, "Amount is too low");
-        shareDistributionContract.writeSharesData(_address, _nounce, amount, lockTimestamp, unlockTimestamp);
+        shareDistributionContract.writeSharesData(
+            _address,
+            _nounce,
+            amount,
+            lockTimestamp,
+            unlockTimestamp
+        );
     }
 }
