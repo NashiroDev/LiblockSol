@@ -71,14 +71,11 @@ contract Distributor {
         );
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
-        // execute distribution here
         epochTotalAllocation[epochHeight].epochClaimableToken =
             epochEndBalance -
-            totalUnclaimed; // get total amount to distribute from this epoch
-        totalUnclaimed += epochTotalAllocation[epochHeight].epochClaimableToken; // update total amount claimable for every previous epoch
+            totalUnclaimed;
+        totalUnclaimed += epochTotalAllocation[epochHeight].epochClaimableToken;
 
-        // => Need arrayified info for each writing where each address => their shares
-        // => Then new function updateAddressDividends() private => for address in address[] --> totalAllocation[address] += epochTotalAllocation[epochHeight] / shares[address][epochHeight].epochShares
         updateAddressDividends();
 
         lastDistributionTimestamp = nextDistributionTimestamp;
