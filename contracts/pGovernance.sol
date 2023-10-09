@@ -5,6 +5,12 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
 
 contract Governance {
+
+    event NewProposal(uint indexed proposalId, string title, address creator);
+    event ProposalExecuted(uint indexed proposalId, bool accepted);
+    event Vote(uint indexed proposalId, address voter);
+    event BalancingExecuted(uint balancingId);
+
     AggregatorV3Interface private dataFeed;
 
     constructor(address _libToken) {
@@ -31,7 +37,7 @@ contract Governance {
     Liblock public libToken;
     uint8 private threshold;
     uint256 public maxPower;
-    address internal admin;
+    address private admin;
 
     struct Balancing {
         uint id;
@@ -91,27 +97,40 @@ contract Governance {
         _;
     }
 
+    /**
+    * @dev Sets the contract admin
+    * @param account The address of the admin
+    */
     function setAdmin(address account) private {
         require(account != address(0), "Invalid address");
         admin = account;
     }
 
+    /**
+    * @dev Checks if the given address is the admin
+    * @param account The address to check
+    * @return A boolean indicating if the address is the admin
+    */
     function isAdmin(address account) private view returns (bool) {
         return admin == account;
     }
 
+    /**
+    * @dev Updates the balance floor price neccessary to submit a proposal
+    * This function can only be called by the admin
+    * This function can only be called each 7days
+    */
     function balanceFloor() external onlyAdmin {
-        // require(balancing[balancingCount].nextTimestamp >= block.timestamp);
+        require(balancing[balancingCount].nextTimestamp >= block.timestamp);
         balancingCount++;
 
         (
-            ,
-            /* uint80 roundID */ int answer,
-            ,
-            /* uint startedAt */ uint timeStamp,
-
-        ) = /* uint80 answeredInRound */
-            dataFeed.latestRoundData();
+            /* uint80 roundID */,
+            int answer,
+            /* uint startedAt */ ,
+            uint timeStamp,
+            /* uint80 answeredInRound */
+        ) = dataFeed.latestRoundData();
 
         uint nextPriceTaget = balancing[balancingCount - 1].epochPriceTarget +
             balancing[balancingCount - 1].epochPriceTarget /
@@ -128,8 +147,15 @@ contract Governance {
             epochFloor,
             nextPriceTaget
         );
+
+        emit BalancingExecuted(balancingCount);
     }
 
+    /**
+    * @dev Creates a new proposal
+    * @param _title The title of the proposal
+    * @param _description The description of the proposal
+    */
     function createProposal(
         string calldata _title,
         string calldata _description
@@ -152,8 +178,25 @@ contract Governance {
             0,
             block.timestamp + 7 days
         );
+
+        emit NewProposal(proposalCount, _title, msg.sender);
     }
 
+    /**
+    * @dev Retrieves the details of a proposal
+    * @param _proposalId The ID of the proposal
+    * @return id The ID of the proposal
+    * @return title The title of the proposal
+    * @return description The description of the proposal
+    * @return creator The address of the creator of the proposal
+    * @return executed A boolean indicating if the proposal has been executed
+    * @return accepted A boolean indicating if the proposal has been accepted
+    * @return yesVotes The number of "yes" votes received
+    * @return noVotes The number of "no" votes received
+    * @return abstainVotes The number of "abstain" votes received
+    * @return uniqueVotes The number of unique voters
+    * @return votingEndTime The end time of the voting period
+    */
     function getProposal(
         uint _proposalId
     )
@@ -189,6 +232,11 @@ contract Governance {
         );
     }
 
+    /**
+    * @dev Allows a token holder to vote on a proposal
+    * @param _proposalId The ID of the proposal
+    * @param _vote The vote ("yes", "no", or "abstain")
+    */
     function vote(
         uint _proposalId,
         string memory _vote
@@ -248,8 +296,16 @@ contract Governance {
                 proposal.abstainVotes += votePower;
             }
         }
+
+        emit Vote(_proposalId, msg.sender);
     }
 
+    /**
+    * @dev Calculates the progression of a proposal
+    * @param _proposalId The ID of the proposal
+    * @return progression The progression percentage
+    * @return totalVotes The total number of votes
+    */
     function calculateProgression(
         uint _proposalId
     ) external view returns (uint, uint) {
@@ -266,6 +322,10 @@ contract Governance {
         return (progression, totalVotes);
     }
 
+    /**
+    * @dev Checks the outcome of a proposal
+    * @param _proposalId The ID of the proposal
+    */
     function checkProposalOutcome(uint _proposalId) private {
         Proposal storage proposal = proposals[_proposalId];
         uint totalVotes = proposal.yesVotes +
@@ -284,8 +344,14 @@ contract Governance {
             proposal.executed = true;
             proposal.accepted = false;
         }
+
+        emit ProposalExecuted(_proposalId, proposal.accepted);
     }
 
+    /**
+    * @dev Returns the block number for the next alteration
+    * @return The block number
+    */
     function nextAlterationBlock() external view returns (uint) {
         return
             balancing[balancingCount].blockHeight +
