@@ -18,7 +18,7 @@ contract Distributor {
     mapping(address => mapping(uint => uint)) private nounce;
 
     // track epoch total token to claim and yet to be claimed
-    mapping(uint => Shares) private epochTotalAllocation;
+    mapping(uint => Shares) private epochTotalAllowance;
 
     // track address shares and claimable tokens for an epoch
     mapping(address => mapping(uint => Shares)) private shares;
@@ -71,10 +71,10 @@ contract Distributor {
         );
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
-        epochTotalAllocation[epochHeight].epochClaimableToken =
+        epochTotalAllowance[epochHeight].epochClaimableToken =
             epochEndBalance -
             totalUnclaimed;
-        totalUnclaimed += epochTotalAllocation[epochHeight].epochClaimableToken;
+        totalUnclaimed += epochTotalAllowance[epochHeight].epochClaimableToken;
 
         updateAddressDividends();
 
@@ -84,7 +84,7 @@ contract Distributor {
     }
 
     function updateAddressDividends() private {
-        uint tokenPerShare = epochTotalAllocation[epochHeight].epochClaimableToken*10**18 / epochTotalAllocation[epochHeight].epochShares;
+        uint tokenPerShare = epochTotalAllowance[epochHeight].epochClaimableToken*10**18 / epochTotalAllowance[epochHeight].epochShares;
         for (uint i = 0; i < epochActiveAddress[epochHeight].length; i++) {
             address _address = epochActiveAddress[epochHeight][i];
             shares[_address][epochHeight].epochClaimableToken = (tokenPerShare * shares[_address][epochHeight].epochShares) / 10**18;
@@ -116,7 +116,7 @@ contract Distributor {
                     ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
                         (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
                 shares[_address][epochHeight+1].epochShares += sharesForLock;
-                epochTotalAllocation[epochHeight+1]
+                epochTotalAllowance[epochHeight+1]
                     .epochShares += sharesForLock;
 
                 nounce[_address][epochHeight+1]++;
@@ -149,7 +149,7 @@ contract Distributor {
             ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
                 (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
         shares[_address][epochHeight].epochShares += sharesForLock;
-        epochTotalAllocation[epochHeight].epochShares += sharesForLock;
+        epochTotalAllowance[epochHeight].epochShares += sharesForLock;
         nounce[_address][epochHeight]++;
 
         if (!isActive[epochHeight][_address]) {
@@ -164,8 +164,6 @@ contract Distributor {
             amount <= totalAllocation[msg.sender],
             "Amount exceeds address allocation"
         );
-
-        // feeGeneratingToken.approve(msg.sender, amount);
 
         totalAllocation[msg.sender] -= amount;
         totalUnclaimed -= amount;
@@ -186,10 +184,7 @@ contract Distributor {
     }
 
     function getEpochTimeLeft() external view returns (uint _seconds) {
-        require(
-            (nextDistributionTimestamp - block.timestamp) >= 0,
-            "epoch need to be updated"
-        );
+        require(block.timestamp <= nextDistributionTimestamp, "epoch need to be updated");
         return nextDistributionTimestamp - block.timestamp;
     }
 
@@ -213,8 +208,8 @@ contract Distributor {
         uint _epoch
     ) external view returns (uint epochTotalShares, uint epochTotalTokens) {
         return (
-            epochTotalAllocation[_epoch].epochShares,
-            epochTotalAllocation[_epoch].epochClaimableToken
+            epochTotalAllowance[_epoch].epochShares,
+            epochTotalAllowance[_epoch].epochClaimableToken
         );
     }
 
@@ -229,7 +224,7 @@ contract Distributor {
     }
 
     function getAddressEpochNounce(address _address, uint _epoch) external view returns(uint epochNounce) {
-        return nounce[_address][_epoch];
+        return nounce[_address][_epoch]-1;
     }
 
     function getAddressClaimableTokens(

@@ -42,14 +42,6 @@ contract TokenStaking {
         totalIssuedToken = 0;
     }
 
-    function lockTest(uint amount) external {
-        require(
-            amount <= depositToken.balanceOf(msg.sender),
-            "Not enough tokens"
-        );
-        lockTokens(amount, 100, 500);
-    }
-
     function lock17(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -188,7 +180,7 @@ contract TokenStaking {
             _nounce < nounce[_address],
             "This nounce do not exist for this address"
         );
-        require((ledger[_address][_nounce].lockUntil - block.timestamp) >= 0, "Tokens already unlocked");
+        require(block.timestamp < ledger[_address][_nounce].lockUntil, "Tokens already unlocked");
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
@@ -245,6 +237,6 @@ contract TokenStaking {
     }
 
     function getAddressNounce(address _address) external view returns(uint _nounce) {
-        return nounce[_address];
+        return nounce[_address]-1;
     }
 }

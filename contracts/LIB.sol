@@ -192,9 +192,4 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
             super._burn(sender, (feeAmount * zeroAddressShares) / 10 ** 3);
         }
     }
-
-    // function approveFrom(address _spender, uint _amount) external {
-    //     require(msg.sender == distributionContract, "Not allowed");
-    //     _approve(address(distributionContract), _spender, _amount);
-    // }
 }
