@@ -221,6 +221,10 @@ contract Distributor {
         );
     }
 
+    function getAddressEpochNounce(address _address, uint _epoch) external view returns(uint epochNounce) {
+        return nounce[_address][_epoch];
+    }
+
     function getAddressClaimableTokens(
         address _address
     ) external view returns (uint amount) {
