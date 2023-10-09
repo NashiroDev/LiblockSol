@@ -97,7 +97,7 @@ contract Distributor {
     function nextEpochInheritance(address _address) private {
         for (uint x = 0; x <= nounce[_address][epochHeight]; x++) {
             if (
-                epochAllocation[_address][epochHeight][x].unlockTimestamp <
+                epochAllocation[_address][epochHeight][x].unlockTimestamp >
                 nextDistributionTimestamp
             ) {
                 uint _amount = epochAllocation[_address][epochHeight][x].amount;
