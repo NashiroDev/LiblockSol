@@ -7,19 +7,23 @@ import "./LIB.sol";
 import "./rLIB.sol";
 import "./distribute.sol";
 
+/**
+* @title TokenStaking
+* @dev A contract for staking tokens and earning rewards based on different lock durations and amount locked
+*/
 contract TokenStaking {
-    Liblock private immutable depositToken;
-    rLiblock private immutable rewardToken;
-    Distributor private immutable shareDistributionContract;
+    Liblock private immutable depositToken; // The token to stake
+    rLiblock private immutable rewardToken; // The token rewarded for a stake
+    Distributor private immutable shareDistributionContract; // The contract responsible for distributing shares of the fee pool
 
-    uint private totalDepositedToken;
-    uint private totalIssuedToken;
+    uint private totalDepositedToken; // Total amount of tokens stacked at the moment
+    uint private totalIssuedToken; // Total amount of tokens rewarded at the moment
 
-    event TokensLocked(address indexed user, uint amount);
+    event TokensLocked(address indexed user, uint amount, uint unlockAt);
     event TokensWithdrawn(address indexed user, uint amount);
 
-    mapping(address => mapping(uint => Ledger)) public ledger;
-    mapping(address => uint) private nounce;
+    mapping(address => mapping(uint => Ledger)) public ledger; // Mapping to store the user's token staking information
+    mapping(address => uint) private nounce; // Mapping to store the user's nounce (to keep track of their token staking records)
 
     struct Ledger {
         uint amountDeposited;
@@ -30,6 +34,12 @@ contract TokenStaking {
         TokenTimelock lock;
     }
 
+    /**
+    * @dev Constructor function
+    * @param _depositToken The address of the deposit token
+    * @param _rewardToken The address of the reward token
+    * @param _shareDistributionContract The address of the share distribution contract
+    */
     constructor(
         address _depositToken,
         address _rewardToken,
@@ -42,14 +52,10 @@ contract TokenStaking {
         totalIssuedToken = 0;
     }
 
-    function lockTest(uint amount) external {
-        require(
-            amount <= depositToken.balanceOf(msg.sender),
-            "Not enough tokens"
-        );
-        lockTokens(amount, 100, 500);
-    }
-
+    /**
+    * @dev Lock tokens for 17 days - ratio of 1:1
+    * @param amount The amount of tokens to lock
+    */
     function lock17(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -58,6 +64,10 @@ contract TokenStaking {
         lockTokens(amount, 100, 17 days);
     }
 
+    /**
+    * @dev Lock tokens for 31 days - ratio of 1:1.05
+    * @param amount The amount of tokens to lock
+    */
     function lock31(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -66,6 +76,10 @@ contract TokenStaking {
         lockTokens(amount, 105, 31 days);
     }
 
+    /**
+    * @dev Lock tokens for 93 days - ratio of 1:1.25
+    * @param amount The amount of tokens to lock
+    */
     function lock93(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -74,6 +88,10 @@ contract TokenStaking {
         lockTokens(amount, 125, 93 days);
     }
 
+    /**
+    * @dev Lock tokens for 186 days - ratio of 1:1.45
+    * @param amount The amount of tokens to lock
+    */
     function lock186(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -82,6 +100,10 @@ contract TokenStaking {
         lockTokens(amount, 145, 186 days);
     }
 
+    /**
+    * @dev Lock tokens for 279 days - ratio of 1:1.6
+    * @param amount The amount of tokens to lock
+    */
     function lock279(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -90,6 +112,10 @@ contract TokenStaking {
         lockTokens(amount, 160, 279 days);
     }
 
+    /**
+    * @dev Lock tokens for 365 days - ratio of 1:1.7
+    * @param amount The amount of tokens to lock
+    */
     function lock365(uint amount) external {
         require(
             amount <= depositToken.balanceOf(msg.sender),
@@ -98,6 +124,12 @@ contract TokenStaking {
         lockTokens(amount, 170, 365 days);
     }
 
+    /**
+    * @dev Internal function to lock tokens for a specific duration
+    * @param amount The amount of tokens to lock
+    * @param ratio The ratio used for calculating reward tokens based on deposited tokens
+    * @param lockDuration The duration for which the tokens will be locked
+    */
     function lockTokens(
         uint256 amount,
         uint8 ratio,
@@ -146,13 +178,17 @@ contract TokenStaking {
         totalDepositedToken += amount;
         totalIssuedToken += rewardAmount;
 
-        emit TokensLocked(msg.sender, amount);
+        emit TokensLocked(msg.sender, amount, ledger[msg.sender][nounce[msg.sender]].lockUntil);
     }
 
-    function withdrawTokens(uint id) external {
-        TokenTimelock lock = ledger[msg.sender][id].lock;
-        uint amountIssued = ledger[msg.sender][id].amountIssued;
-        uint amountDeposited = ledger[msg.sender][id].amountDeposited;
+    /**
+    * @dev Withdraw locked tokens
+    * @param _nounce The nounce of the deposit with tokens to be withdrawn
+    */
+    function withdrawTokens(uint _nounce) external {
+        TokenTimelock lock = ledger[msg.sender][_nounce].lock;
+        uint amountIssued = ledger[msg.sender][_nounce].amountIssued;
+        uint amountDeposited = ledger[msg.sender][_nounce].amountDeposited;
 
         require(
             rewardToken.allowance(msg.sender, address(this)) >= amountIssued,
@@ -164,7 +200,7 @@ contract TokenStaking {
         );
         require(
             address(lock) != address(0),
-            "No tokens locked for this identifier"
+            "No tokens locked for this nounce"
         );
 
         lock.release();
@@ -179,19 +215,29 @@ contract TokenStaking {
         emit TokensWithdrawn(msg.sender, amountIssued);
     }
 
-    // get the lock time remaining in seconds
+    /**
+    * @dev Get the lock time remaining in seconds
+    * @param _address The address of the user
+    * @param _nounce The nounce of the deposit
+    * @return lockTime - The remaining lock time in seconds
+    */
     function getLockTimeRemaining(
         address _address,
         uint _nounce
-    ) external view returns (uint) {
+    ) external view returns (uint lockTime) {
         require(
-            _nounce <= nounce[_address],
+            _nounce < nounce[_address],
             "This nounce do not exist for this address"
         );
-        require(ledger[_address][_nounce].lockUntil - block.timestamp >= 0, "Tokens already unlocked");
+        require(block.timestamp < ledger[_address][_nounce].lockUntil, "Tokens already unlocked");
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
+    /**
+    * @dev Private function to request adding or removing a fee excluded address to the stacking token contract
+    * @param _address The address to be added or removed
+    * @param _excluded Boolean indicating whether to add or remove the address
+    */
     function requestNewFeeExcludedAddress(
         address _address,
         bool _excluded
@@ -199,6 +245,11 @@ contract TokenStaking {
         depositToken.setFeeExcludedAddress(_address, _excluded);
     }
 
+    /**
+    * @dev Internal function to request delegation of remote tokens to the stacking token contract
+    * @param delegator The address of the delegator
+    * @param delegatee The address of the delegatee
+    */
     function requestDelegationDeposit(
         address delegator,
         address delegatee
@@ -206,6 +257,11 @@ contract TokenStaking {
         depositToken.delegateFrom(delegator, delegatee);
     }
 
+    /**
+    * @dev Private function to request delegation of reward tokens to the reward token contract
+    * @param delegator The address of the delegator
+    * @param delegatee The address of the delegatee
+    */
     function requestDelegationReward(
         address delegator,
         address delegatee
@@ -213,14 +269,29 @@ contract TokenStaking {
         rewardToken.delegateFrom(delegator, delegatee);
     }
 
+    /**
+    * @dev Private function to request minting of reward tokens to the sender address
+    * @param amount The amount of reward tokens to mint
+    */
     function requestMint(uint amount) private {
         rewardToken.mint(msg.sender, amount);
     }
 
+    /**
+    * @dev Internal function to request burning of reward tokens from the sender address
+    * @param amount The amount of reward tokens to burn
+    */
     function requestBurn(uint amount) private {
         rewardToken.burn(msg.sender, amount);
     }
 
+    /**
+    * @dev Private function to send shares data to the token and shares distribution contract
+    * @param _address The address of the user
+    * @param amount The amount of reward tokens
+    * @param lockTimestamp The timestamp when the tokens were locked
+    * @param unlockTimestamp The timestamp when the tokens can be unlocked
+    */
     function sendSharesData(
         address _address,
         uint amount,
@@ -236,15 +307,31 @@ contract TokenStaking {
         );
     }
 
+    /**
+    * @dev Get the addresses of the associated contracts
+    * @return _depositToken - The address of the deposit token
+    * @return _rewardToken - The address of the reward token
+    * @return _shareDistributionContract - The address of the share distribution contract
+    */
     function getContracts() external view returns(address _depositToken, address _rewardToken, address _shareDistributionContract) {
         return (address(depositToken), address(rewardToken), address(shareDistributionContract));
     }
 
+    /**
+    * @dev Get the total deposited and issued tokens
+    * @return depositedTokens - The total deposited tokens at the moment
+    * @return issuedTokens - The total issued reward tokens at the moment
+    */
     function getTotalDepositedIssuedToken() external view returns(uint depositedTokens, uint issuedTokens) {
         return (totalDepositedToken, totalIssuedToken);
     }
 
+    /**
+    * @dev Get the nounce of the given address
+    * @param _address The address of the user
+    * @return _nounce The nounce of the user
+    */
     function getAddressNounce(address _address) external view returns(uint _nounce) {
-        return nounce[_address];
+        return nounce[_address]-1;
     }
 }

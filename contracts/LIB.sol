@@ -39,12 +39,21 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         _;
     }
 
+    /**
+     * @dev Sets the admin address.
+     * @param account The new admin address.
+     */
     function setAdmin(address account) external onlyAdmin {
         require(account != address(0), "Invalid address");
         require(account != address(this), "Invalid address");
         admin = account;
     }
 
+    /**
+     * @dev Checks if an address is the admin address.
+     * @param account The address to check.
+     * @return A boolean indicating whether the address is the admin or not.
+     */
     function isAdmin(address account) private view returns (bool) {
         return admin == account;
     }
@@ -75,6 +84,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
 
     // token exclusive function
 
+    /**
+     * @dev Delegates voting power from a delegator to a delegatee.
+     * @param delegator The address delegating voting power.
+     * @param delegatee The address receiving voting power.
+     */
     function delegateFrom(
         address delegator,
         address delegatee
@@ -84,7 +98,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         super._delegate(delegator, delegatee);
     }
 
-    // Define the amout of fees a user will pay depending of the amount of token
+    /**
+     * @dev Calculates the fee percentage based on the token amount being transferred.
+     * @param amount The amount of tokens being transferred.
+     * @return The fee percentage.
+     */
     function calculateFeePercentage(
         uint256 amount
     ) private pure returns (uint32) {
@@ -116,7 +134,15 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         }
     }
 
-    // Overwrite past recipients address and allocations
+    /**
+     * @dev Sets the fee recipients and their corresponding shares.
+     * @param _devWallet The destination wallet address for developer fees.
+     * @param _devWalletShares The percentage of fees allocated to the developer wallet.
+     * @param _distributionContract The destination contract address for distribution fees.
+     * @param _distributionContractShares The percentage of fees allocated to the distribution contract.
+     * @param _liblockFondationWalletShares The percentage of fees allocated to the Liblock foundation wallet.
+     * @param _zeroAdressShares The percentage of fees allocated to the zero address (burned).
+     */
     function setFeeRecipientsAndShares(
         address _devWallet,
         uint16 _devWalletShares,
@@ -142,6 +168,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         zeroAddressShares = _zeroAdressShares;
     }
 
+    /**
+     * @dev Sets an address to be excluded from paying fees.
+     * @param _address The address to be excluded or included.
+     * @param _excluded A boolean indicating whether the address should be excluded or included.
+     */
     function setFeeExcludedAddress(
         address _address,
         bool _excluded
@@ -153,13 +184,22 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         }
     }
 
+    /**
+     * @dev Sets the distribution contract address.
+     * @param _address The new distribution contract address.
+     */
     function setDistributionContract(address _address) external onlyAdmin {
         require(_address != address(0), "Can not set address 0");
         require(_address != address(this), "Can not set this contract");
         distributionContract = address(_address);
     }
 
-    // fees are currently applied to the transfer and tranferFrom function
+    /**
+     * @dev Transfers tokens from one address to another.
+     * @param sender The address sending the tokens.
+     * @param recipient The address receiving the tokens.
+     * @param amount The amount of tokens to transfer.
+     */
     function _transfer(
         address sender,
         address recipient,
@@ -191,10 +231,5 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
             );
             super._burn(sender, (feeAmount * zeroAddressShares) / 10 ** 3);
         }
-    }
-
-    function approveFrom(address _spender, uint _amount) external {
-        require(msg.sender == distributionContract, "Not allowed");
-        super._approve(address(distributionContract), _spender, _amount);
     }
 }
