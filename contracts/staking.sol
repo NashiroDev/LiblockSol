@@ -185,10 +185,10 @@ contract TokenStaking {
         uint _nounce
     ) external view returns (uint) {
         require(
-            _nounce <= nounce[_address],
+            _nounce < nounce[_address],
             "This nounce do not exist for this address"
         );
-        require(ledger[_address][_nounce].lockUntil - block.timestamp >= 0, "Tokens already unlocked");
+        require((ledger[_address][_nounce].lockUntil - block.timestamp) >= 0, "Tokens already unlocked");
         return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 

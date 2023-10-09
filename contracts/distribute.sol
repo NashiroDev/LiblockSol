@@ -165,12 +165,12 @@ contract Distributor {
             "Amount exceeds address allocation"
         );
 
-        feeGeneratingToken.approveFrom(msg.sender, amount);
+        // feeGeneratingToken.approve(msg.sender, amount);
 
         totalAllocation[msg.sender] -= amount;
         totalUnclaimed -= amount;
 
-        feeGeneratingToken.transferFrom(address(this), msg.sender, amount);
+        feeGeneratingToken.transfer(msg.sender, amount);
     }
 
     function getEpochHeight() external view returns (uint epoch) {
