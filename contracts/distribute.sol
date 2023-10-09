@@ -105,6 +105,13 @@ contract Distributor {
                     .unlockTimestamp;
                 uint _lockTimestamp = epochAllocation[_address][epochHeight][x]
                     .lockTimestamp;
+
+                epochAllocation[_address][epochHeight+1][nounce[_address][epochHeight+1]] = Allocation(
+                    _amount,
+                    _lockTimestamp,
+                    _unlockTimestamp
+                );
+                
                 uint sharesForLock = (_amount *
                     ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
                         (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
