@@ -158,6 +158,8 @@ contract Distributor {
             "Amount exceeds address allocation"
         );
 
+        feeGeneratingToken.approve(msg.sender, amount);
+
         totalAllocation[msg.sender] -= amount;
         totalUnclaimed -= amount;
 
