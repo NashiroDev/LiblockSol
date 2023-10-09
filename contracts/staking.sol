@@ -170,11 +170,9 @@ contract TokenStaking {
         lock.release();
         requestBurn(amountIssued);
 
-        delete ledger[msg.sender][id];
         requestNewFeeExcludedAddress(address(lock), false);
         requestDelegationDeposit(msg.sender, msg.sender);
 
-        nounce[msg.sender]--;
         totalDepositedToken -= amountDeposited;
         totalIssuedToken -= amountIssued;
 
@@ -190,7 +188,8 @@ contract TokenStaking {
             _nounce <= nounce[_address],
             "This nounce do not exist for this address"
         );
-        return (ledger[_address][_nounce].lockUntil - block.timestamp) > 0 ? ledger[_address][_nounce].lockUntil - block.timestamp : 0;
+        require(ledger[_address][_nounce].lockUntil - block.timestamp >= 0, "Tokens already unlocked");
+        return ledger[_address][_nounce].lockUntil - block.timestamp;
     }
 
     function requestNewFeeExcludedAddress(

@@ -84,14 +84,10 @@ contract Distributor {
     }
 
     function updateAddressDividends() private {
-        // trouver bon ratio pour la partage du pool
+        uint tokenPerShare = epochTotalAllocation[epochHeight].epochClaimableToken*10**18 / epochTotalAllocation[epochHeight].epochShares;
         for (uint i = 0; i < epochActiveAddress[epochHeight].length; i++) {
             address _address = epochActiveAddress[epochHeight][i];
-
-            shares[_address][epochHeight].epochClaimableToken =
-                (epochTotalAllocation[epochHeight].epochClaimableToken *
-                ((shares[_address][epochHeight].epochShares /
-                    epochTotalAllocation[epochHeight].epochShares)* 10**20)) / 10**20;
+            shares[_address][epochHeight].epochClaimableToken = (tokenPerShare * shares[_address][epochHeight].epochShares) / 10**18;
             totalAllocation[_address] += shares[_address][epochHeight]
                 .epochClaimableToken;
             nextEpochInheritance(_address);
@@ -110,25 +106,17 @@ contract Distributor {
                 uint _lockTimestamp = epochAllocation[_address][epochHeight][x]
                     .lockTimestamp;
                 uint sharesForLock = (_amount *
-                    ((
-                        _unlockTimestamp >= nextDistributionTimestamp
-                            ? nextDistributionTimestamp
-                            : _unlockTimestamp
-                    ) -
-                    (
-                        _lockTimestamp <= lastDistributionTimestamp
-                            ? lastDistributionTimestamp
-                            : _lockTimestamp
-                    ))) / 10 ** 5;
-                shares[_address][epochHeight + 1].epochShares += sharesForLock;
-                epochTotalAllocation[epochHeight + 1]
+                    ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
+                        (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
+                shares[_address][epochHeight+1].epochShares += sharesForLock;
+                epochTotalAllocation[epochHeight+1]
                     .epochShares += sharesForLock;
 
                 nounce[_address][epochHeight+1]++;
 
-                if (!isActive[epochHeight + 1][_address]) {
-                    isActive[epochHeight + 1][_address] = true;
-                    epochActiveAddress[epochHeight + 1].push(_address);
+                if (!isActive[epochHeight+1][_address]) {
+                    isActive[epochHeight+1][_address] = true;
+                    epochActiveAddress[epochHeight+1].push(_address);
                 }
             }
         }
@@ -151,16 +139,8 @@ contract Distributor {
             _unlockTimestamp
         );
         uint sharesForLock = (amount *
-            ((
-                _unlockTimestamp >= nextDistributionTimestamp
-                    ? nextDistributionTimestamp
-                    : _unlockTimestamp
-            ) -
-                (
-                    _lockTimestamp <= lastDistributionTimestamp
-                        ? lastDistributionTimestamp
-                        : _lockTimestamp
-                ))) / 10 ** 5;
+            ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
+                (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
         shares[_address][epochHeight].epochShares += sharesForLock;
         epochTotalAllocation[epochHeight].epochShares += sharesForLock;
         nounce[_address][epochHeight]++;
