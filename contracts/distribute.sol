@@ -111,7 +111,7 @@ contract Distributor {
                     _lockTimestamp,
                     _unlockTimestamp
                 );
-                
+
                 uint sharesForLock = (_amount *
                     ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
                         (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
@@ -165,7 +165,7 @@ contract Distributor {
             "Amount exceeds address allocation"
         );
 
-        feeGeneratingToken.approve(msg.sender, amount);
+        feeGeneratingToken.approveFrom(msg.sender, amount);
 
         totalAllocation[msg.sender] -= amount;
         totalUnclaimed -= amount;
