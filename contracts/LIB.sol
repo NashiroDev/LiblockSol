@@ -14,8 +14,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     // setting initial destination wallet address for fees
     address private devWallet =
         payable(0x05525CdE529C5212F1eaB7f033146C8CC103cd5D);
-    address private distributionContract =
-        payable(0x3a15BBaeCdBb123bd30583C6249D2d1dd13e0709);
+    address private distributionContract;
     address private liblockFondationWallet;
 
     // setting initial shares of generated fees
@@ -31,7 +30,6 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         _mint(address(msg.sender), 500000 * 10 ** decimals());
         admin = address(msg.sender);
         liblockFondationWallet = admin;
-        excludedFromFee[msg.sender] = true;
     }
 
     // admin related stuff
@@ -77,8 +75,10 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
 
     // token exclusive function
 
-
-    function delegateFrom(address delegator, address delegatee) external onlyAdmin {
+    function delegateFrom(
+        address delegator,
+        address delegatee
+    ) external onlyAdmin {
         require(delegator != address(0), "Delegator can't be zero address");
         require(delegator != address(this), "Illegal");
         super._delegate(delegator, delegatee);
@@ -142,12 +142,21 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         zeroAddressShares = _zeroAdressShares;
     }
 
-    function setFeeExcludedAddress(address _address, bool _excluded) external onlyAdmin {
+    function setFeeExcludedAddress(
+        address _address,
+        bool _excluded
+    ) external onlyAdmin {
         if (_excluded) {
             excludedFromFee[_address] = true;
         } else {
             delete excludedFromFee[_address];
         }
+    }
+
+    function setDistributionContract(address _address) external onlyAdmin {
+        require(_address != address(0), "Can not set address 0");
+        require(_address != address(this), "Can not set this contract");
+        distributionContract = address(_address);
     }
 
     // fees are currently applied to the transfer and tranferFrom function
@@ -182,5 +191,10 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
             );
             super._burn(sender, (feeAmount * zeroAddressShares) / 10 ** 3);
         }
+    }
+
+    function approveFrom(address _spender, uint _amount) external {
+        require(msg.sender == distributionContract, "Not allowed");
+        super._approve(address(distributionContract), _spender, _amount);
     }
 }
