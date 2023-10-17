@@ -22,6 +22,10 @@ contract Distributor {
     uint private epochHeight;
     uint private totalUnclaimed;
 
+    // track inheritance progress
+    mapping(uint => uint[]) private dividendsProgress;
+    mapping(address => mapping(uint => uint[])) private inheritanceProgress;
+
     // track address locks
     mapping(address => mapping(uint => mapping(uint => Allocation))) private epochAllocation;
     mapping(address => mapping(uint => uint)) private nounce;
@@ -100,46 +104,73 @@ contract Distributor {
             totalUnclaimed;
         totalUnclaimed += epochTotalAllowance[epochHeight].epochClaimableToken;
 
-        updateAddressDividends();
-
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 15 days;
         epochHeight++;
 
+        generateDividendsData();
+
         emit EpochUpdated(epochHeight, totalUnclaimed);
     }
 
-    /**
-    * @dev Updates the address dividends by calculating the claimable tokens for each address in the current epoch.
-    */
-    function updateAddressDividends() private {
-        uint tokenPerShare = epochTotalAllowance[epochHeight].epochClaimableToken*10**18 / epochTotalAllowance[epochHeight].epochShares;
-        for (uint i = 0; i < epochActiveAddress[epochHeight].length; i++) {
-            address _address = epochActiveAddress[epochHeight][i];
-            shares[_address][epochHeight].epochClaimableToken = (tokenPerShare * shares[_address][epochHeight].epochShares) / 10**18;
-            totalAllocation[_address] += shares[_address][epochHeight]
-                .epochClaimableToken;
-            nextEpochInheritance(_address);
-        }
+    function generateDividendsData() private {
+        dividendsProgress[epochHeight-1] = [
+            0,
+            epochActiveAddress[epochHeight-1].length
+        ];
+    }
+
+    function generateInheritanceProgress(address _address) private {
+        inheritanceProgress[_address][epochHeight-1] = [
+            0,
+            nounce[_address][epochHeight-1]-1
+        ];
     }
 
     /**
-    * @dev Calculates the next epoch's inheritance for a given address by checking the remaining locks in the current epoch.
+    * @dev Updates the address dividends by calculating the claimable tokens for each address in the range for the last epoch.
+    */
+    function updateAddressDividends() external {
+        uint workingEpoch = epochHeight - 1;
+        require(dividendsProgress[workingEpoch][0] >= dividendsProgress[workingEpoch][1], "All dividends are already proccessed");
+
+        uint tokenPerShare = epochTotalAllowance[workingEpoch].epochClaimableToken*10**18 / epochTotalAllowance[workingEpoch].epochShares;
+        uint8 looper = dividendsProgress[workingEpoch][1] - dividendsProgress[workingEpoch][0] >= 100 ? 100 : uint8(dividendsProgress[workingEpoch][1] - dividendsProgress[workingEpoch][0]);
+
+        for (uint i = dividendsProgress[workingEpoch][0]; i <= dividendsProgress[workingEpoch][0] + looper; i++) {
+            address _address = epochActiveAddress[workingEpoch][i];
+            shares[_address][workingEpoch].epochClaimableToken = (tokenPerShare * shares[_address][workingEpoch].epochShares) / 10**18;
+            totalAllocation[_address] += shares[_address][workingEpoch]
+                .epochClaimableToken;
+            generateInheritanceProgress(_address);
+        }
+        dividendsProgress[workingEpoch][0] += looper;
+    }
+
+    /**
+    * @dev Calculates the current epoch's inheritance for a given address from the last epoch.
     * @param _address The address to calculate the next epoch's inheritance for.
     */
-    function nextEpochInheritance(address _address) private {
-        for (uint x = 0; x <= nounce[_address][epochHeight]; x++) {
+    function currentEpochInheritance(address _address) external {
+        uint workingEpoch = epochHeight - 1;
+        require(inheritanceProgress[_address][workingEpoch].length == 2, "Address dividends need to be updated first");
+        require(nounce[_address][workingEpoch] > 0, "Address had no allocation in last epoch");
+        require(inheritanceProgress[_address][workingEpoch][0] >= inheritanceProgress[_address][workingEpoch][1], "All inheritances are already proccessed");
+
+        uint8 looper = inheritanceProgress[_address][workingEpoch][0] - inheritanceProgress[_address][workingEpoch][0] >= 10 ? 10 : uint8(inheritanceProgress[_address][workingEpoch][0] - inheritanceProgress[_address][workingEpoch][0]); 
+
+        for (uint x = inheritanceProgress[_address][workingEpoch][0]; x <= inheritanceProgress[_address][workingEpoch][0] + looper; x++) {
             if (
-                epochAllocation[_address][epochHeight][x].unlockTimestamp >
+                epochAllocation[_address][workingEpoch][x].unlockTimestamp >
                 nextDistributionTimestamp
             ) {
-                uint _amount = epochAllocation[_address][epochHeight][x].amount;
-                uint _unlockTimestamp = epochAllocation[_address][epochHeight][x]
+                uint _amount = epochAllocation[_address][workingEpoch][x].amount;
+                uint _unlockTimestamp = epochAllocation[_address][workingEpoch][x]
                     .unlockTimestamp;
-                uint _lockTimestamp = epochAllocation[_address][epochHeight][x]
+                uint _lockTimestamp = epochAllocation[_address][workingEpoch][x]
                     .lockTimestamp;
 
-                epochAllocation[_address][epochHeight+1][nounce[_address][epochHeight+1]] = Allocation(
+                epochAllocation[_address][epochHeight][nounce[_address][epochHeight]] = Allocation(
                     _amount,
                     _lockTimestamp,
                     _unlockTimestamp
@@ -148,18 +179,19 @@ contract Distributor {
                 uint sharesForLock = (_amount *
                     ((_unlockTimestamp >= nextDistributionTimestamp ? nextDistributionTimestamp : _unlockTimestamp) -
                         (_lockTimestamp <= lastDistributionTimestamp ? lastDistributionTimestamp : _lockTimestamp))) / 10 ** 5;
-                shares[_address][epochHeight+1].epochShares += sharesForLock;
-                epochTotalAllowance[epochHeight+1]
+                shares[_address][epochHeight].epochShares += sharesForLock;
+                epochTotalAllowance[epochHeight]
                     .epochShares += sharesForLock;
 
-                nounce[_address][epochHeight+1]++;
+                nounce[_address][epochHeight]++;
 
-                if (!isActive[epochHeight+1][_address]) {
-                    isActive[epochHeight+1][_address] = true;
-                    epochActiveAddress[epochHeight+1].push(_address);
+                if (!isActive[epochHeight][_address]) {
+                    isActive[epochHeight][_address] = true;
+                    epochActiveAddress[epochHeight].push(_address);
                 }
             }
         }
+        inheritanceProgress[_address][workingEpoch][0] += looper;
     }
 
     /**
@@ -328,5 +360,26 @@ contract Distributor {
         address _address
     ) external view returns (uint amount) {
         return totalAllocation[_address];
+    }
+
+    /**
+    * @dev Gets the advancement of the calcul of claimable tokens per address.
+    * @param _epoch The epoch to get the advancement from.
+    * @return processed - The amount of address proccessed.
+    * @return totalToProcess - The amount of address to proccess.
+    */
+    function getEpochProccessAdvancement(uint _epoch) external view returns(uint processed, uint totalToProcess) {
+        return (dividendsProgress[_epoch][0], dividendsProgress[_epoch][1]);
+    }
+
+    /**
+    * @dev Gets the inheritance progression for an address in an epoch
+    * @param _address The address to get the inheritance data from.
+    * @param _epoch The epoch to get the inheritance data from.
+    * @return processed - The amount of allocations proccessed.
+    * @return totalToProcess - The amount of allocations to proccess.
+    */
+    function getAddressEpochInheritance(address _address, uint _epoch) external view returns(uint processed, uint totalToProcess) {
+        return (inheritanceProgress[_address][_epoch][0], inheritanceProgress[_address][_epoch][1]);
     }
 }
