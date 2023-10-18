@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
+import "./rLIB.sol";
 
 contract Governance {
 
@@ -11,12 +12,51 @@ contract Governance {
     event Vote(uint indexed proposalId, address voter);
     event BalancingExecuted(uint balancingId);
 
-    AggregatorV3Interface private dataFeed;
+    Liblock public libToken;
+    rLiblock public rlibToken;
 
-    constructor(address _libToken) {
+    uint public proposalCount;
+    uint256 public balancingCount;
+    uint256 public maxPower;
+    AggregatorV3Interface private dataFeed;
+    uint8 private libThreshold;
+    uint8 private rlibThreshold;
+    address private admin;
+
+    mapping(uint256 => Balancing) public balancing;
+    mapping(uint => Proposal) public proposals;
+    mapping(address => mapping(uint => bool)) public voted;
+
+    struct Balancing {
+        uint id;
+        uint blockHeight;
+        int currentPrice;
+        uint currentTimestamp;
+        uint nextTimestamp;
+        uint epochFloor;
+        uint epochPriceTarget;
+    }
+
+    struct Proposal {
+        uint id;
+        string title;
+        string description;
+        address creator;
+        bool executed;
+        bool accepted;
+        uint yesVotes;
+        uint noVotes;
+        uint abstainVotes;
+        uint uniqueVotes;
+        uint votingEndTime;
+    }
+
+    constructor(address _libToken, address _rlibToken) {
         require(_libToken != address(0), "Invalid LIB Token address");
         libToken = Liblock(_libToken);
-        threshold = 5;
+        rlibToken = rLiblock(_rlibToken);
+        libThreshold = 5;
+        rlibThreshold = 40;
         maxPower = libToken.totalSupply() / 1000;
         setAdmin(msg.sender);
         balancingCount = 0;
@@ -33,43 +73,6 @@ contract Governance {
             0x59F1ec1f10bD7eD9B938431086bC1D9e233ECf41
         );
     }
-
-    Liblock public libToken;
-    uint8 private threshold;
-    uint256 public maxPower;
-    address private admin;
-
-    struct Balancing {
-        uint id;
-        uint blockHeight;
-        int currentPrice;
-        uint currentTimestamp;
-        uint nextTimestamp;
-        uint epochFloor;
-        uint epochPriceTarget;
-    }
-
-    mapping(uint256 => Balancing) public balancing;
-    uint256 public balancingCount;
-
-    struct Proposal {
-        uint id;
-        string title;
-        string description;
-        address creator;
-        bool executed;
-        bool accepted;
-        uint yesVotes;
-        uint noVotes;
-        uint abstainVotes;
-        uint uniqueVotes;
-        uint votingEndTime;
-    }
-
-    mapping(uint => Proposal) public proposals;
-    uint public proposalCount;
-
-    mapping(address => mapping(uint => bool)) public voted;
 
     modifier onlyAdmin() {
         require(isAdmin(msg.sender));
@@ -143,7 +146,7 @@ contract Governance {
             block.number,
             answer,
             timeStamp,
-            timeStamp + 7 days,
+            timeStamp + 15 days,
             epochFloor,
             nextPriceTaget
         );
@@ -254,7 +257,7 @@ contract Governance {
 
         require(!proposal.executed, "Proposal already executed");
 
-        uint votePower = libToken.getVotes(msg.sender);
+        uint votePower = libToken.getVotes(msg.sender) + rlibToken.getVotes(msg.sender);
 
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
@@ -332,7 +335,7 @@ contract Governance {
             proposal.noVotes +
             proposal.abstainVotes;
 
-        if (totalVotes >= (threshold * libToken.totalSupply()) / 100) {
+        if (totalVotes >= (libThreshold * libToken.totalSupply()) / 100 + (rlibThreshold * rlibToken.totalSupply()) / 100) {
             if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
                 proposal.executed = true;
                 proposal.accepted = true;
