@@ -24,6 +24,9 @@ contract Governance {
     address private admin;
 
     mapping(uint256 => Balancing) public balancing;
+
+    mapping(address => mapping(uint => uint)) public virtualPowerUsed;
+
     mapping(uint => Proposal) public proposals;
     mapping(address => mapping(uint => bool)) public voted;
 
@@ -81,18 +84,14 @@ contract Governance {
 
     modifier hasEnoughDelegatedTokens() {
         require(
-            libToken.getVotes(msg.sender) >
+            rlibToken.getVotes(msg.sender) >=
                 balancing[balancingCount].epochFloor,
-            "Insufficient delegated tokens"
+            "Insufficient delegated rLIB tokens"
         );
         _;
     }
 
-    modifier onlyTokenHolderDelegatee() {
-        require(
-            libToken.balanceOf(msg.sender) > 0,
-            "You must hold $LIB tokens to vote"
-        );
+    modifier onlyDelegatee() {
         require(
             libToken.getVotes(msg.sender) > 0,
             "Insufficient delegated tokens"
@@ -146,7 +145,7 @@ contract Governance {
             block.number,
             answer,
             timeStamp,
-            timeStamp + 15 days,
+            timeStamp + 7 days,
             epochFloor,
             nextPriceTaget
         );
@@ -167,6 +166,9 @@ contract Governance {
             bytes(_title).length > 0 && bytes(_description).length > 0,
             "Invalid proposal details"
         );
+
+        deduceVirtualPower(msg.sender);
+
         proposalCount++;
         proposals[proposalCount] = Proposal(
             proposalCount,
@@ -243,7 +245,7 @@ contract Governance {
     function vote(
         uint _proposalId,
         string memory _vote
-    ) external onlyTokenHolderDelegatee {
+    ) external onlyDelegatee {
         require(
             !voted[msg.sender][_proposalId],
             "Already voted for this proposal"
@@ -360,5 +362,10 @@ contract Governance {
             balancing[balancingCount].blockHeight +
             ((balancing[balancingCount].nextTimestamp -
                 balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
+    }
+
+    function deduceVirtualPower(address _address) private {
+        require(rlibToken.getVotes(_address) - virtualPowerUsed[_address][balancingCount] >= balancing[balancingCount].epochFloor, "Not enough rLIB VP left");
+        virtualPowerUsed[_address][balancingCount] += balancing[balancingCount].epochFloor;
     }
 }
