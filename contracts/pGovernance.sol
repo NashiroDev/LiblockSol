@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
+import "./rLIB.sol";
 
 contract Governance {
 
@@ -11,12 +12,59 @@ contract Governance {
     event Vote(uint indexed proposalId, address voter);
     event BalancingExecuted(uint balancingId);
 
-    AggregatorV3Interface private dataFeed;
+    Liblock public libToken;
+    rLiblock public rlibToken;
 
-    constructor(address _libToken) {
+    uint public proposalCount;
+    uint256 public balancingCount;
+    uint256 public maxPower;
+
+    uint8 private libThreshold;
+    uint8 private rlibThreshold;
+    address private admin;
+
+    AggregatorV3Interface private dataFeed;
+    
+    // Track balancing of min VP to submit a proposals
+    mapping(uint256 => Balancing) public balancing;
+
+    // Track VP used per address and balancing epoch
+    mapping(address => mapping(uint => uint)) public virtualPowerUsed;
+
+    // Track created proposals & votes on them
+    mapping(uint => Proposal) public proposals;
+    mapping(address => mapping(uint => bool)) public voted;
+
+    struct Balancing {
+        uint id;
+        uint blockHeight;
+        int currentPrice;
+        uint currentTimestamp;
+        uint nextTimestamp;
+        uint epochFloor;
+        uint epochPriceTarget;
+    }
+
+    struct Proposal {
+        uint id;
+        string title;
+        string description;
+        address creator;
+        bool executed;
+        bool accepted;
+        uint yesVotes;
+        uint noVotes;
+        uint abstainVotes;
+        uint uniqueVotes;
+        uint votingEndTime;
+    }
+
+    constructor(address _libToken, address _rlibToken) {
         require(_libToken != address(0), "Invalid LIB Token address");
         libToken = Liblock(_libToken);
-        threshold = 5;
+        rlibToken = rLiblock(_rlibToken);
+        libThreshold = 5;
+        rlibThreshold = 40;
         maxPower = libToken.totalSupply() / 1000;
         setAdmin(msg.sender);
         balancingCount = 0;
@@ -34,43 +82,6 @@ contract Governance {
         );
     }
 
-    Liblock public libToken;
-    uint8 private threshold;
-    uint256 public maxPower;
-    address private admin;
-
-    struct Balancing {
-        uint id;
-        uint blockHeight;
-        int currentPrice;
-        uint currentTimestamp;
-        uint nextTimestamp;
-        uint epochFloor;
-        uint epochPriceTarget;
-    }
-
-    mapping(uint256 => Balancing) public balancing;
-    uint256 public balancingCount;
-
-    struct Proposal {
-        uint id;
-        string title;
-        string description;
-        address creator;
-        bool executed;
-        bool accepted;
-        uint yesVotes;
-        uint noVotes;
-        uint abstainVotes;
-        uint uniqueVotes;
-        uint votingEndTime;
-    }
-
-    mapping(uint => Proposal) public proposals;
-    uint public proposalCount;
-
-    mapping(address => mapping(uint => bool)) public voted;
-
     modifier onlyAdmin() {
         require(isAdmin(msg.sender));
         _;
@@ -78,18 +89,14 @@ contract Governance {
 
     modifier hasEnoughDelegatedTokens() {
         require(
-            libToken.getVotes(msg.sender) >
+            rlibToken.getVotes(msg.sender) >=
                 balancing[balancingCount].epochFloor,
-            "Insufficient delegated tokens"
+            "Insufficient delegated rLIB tokens"
         );
         _;
     }
 
-    modifier onlyTokenHolderDelegatee() {
-        require(
-            libToken.balanceOf(msg.sender) > 0,
-            "You must hold $LIB tokens to vote"
-        );
+    modifier onlyDelegatee() {
         require(
             libToken.getVotes(msg.sender) > 0,
             "Insufficient delegated tokens"
@@ -120,7 +127,7 @@ contract Governance {
     * This function can only be called by the admin
     * This function can only be called each 7days
     */
-    function balanceFloor() external onlyAdmin {
+    function balanceFloor() external {
         require(balancing[balancingCount].nextTimestamp >= block.timestamp);
         balancingCount++;
 
@@ -164,6 +171,9 @@ contract Governance {
             bytes(_title).length > 0 && bytes(_description).length > 0,
             "Invalid proposal details"
         );
+
+        deduceVirtualPower(msg.sender);
+
         proposalCount++;
         proposals[proposalCount] = Proposal(
             proposalCount,
@@ -240,7 +250,7 @@ contract Governance {
     function vote(
         uint _proposalId,
         string memory _vote
-    ) external onlyTokenHolderDelegatee {
+    ) external onlyDelegatee {
         require(
             !voted[msg.sender][_proposalId],
             "Already voted for this proposal"
@@ -254,7 +264,7 @@ contract Governance {
 
         require(!proposal.executed, "Proposal already executed");
 
-        uint votePower = libToken.getVotes(msg.sender);
+        uint votePower = libToken.getVotes(msg.sender) + rlibToken.getVotes(msg.sender);
 
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
@@ -332,7 +342,7 @@ contract Governance {
             proposal.noVotes +
             proposal.abstainVotes;
 
-        if (totalVotes >= (threshold * libToken.totalSupply()) / 100) {
+        if (totalVotes >= (libThreshold * libToken.totalSupply()) / 100 + (rlibThreshold * rlibToken.totalSupply()) / 100) {
             if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
                 proposal.executed = true;
                 proposal.accepted = true;
@@ -357,5 +367,25 @@ contract Governance {
             balancing[balancingCount].blockHeight +
             ((balancing[balancingCount].nextTimestamp -
                 balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
+    }
+
+    /**
+    * @dev Deduce VP needed for creating a new proposal
+    * @param _address The address to deduce the VP
+    */
+    function deduceVirtualPower(address _address) private {
+        require(rlibToken.getVotes(_address) - virtualPowerUsed[_address][balancingCount] >= balancing[balancingCount].epochFloor, "Not enough rLIB VP left");
+        virtualPowerUsed[_address][balancingCount] += balancing[balancingCount].epochFloor;
+    }
+
+    /**
+    * @dev Allow admin to alter thresholds
+    * @param _libThreshold Threshold for the LIB token.
+    * @param _rlibThreshold Threshold for the rLIB token.
+    */
+    function setNewThresholds(uint8 _libThreshold, uint8 _rlibThreshold) external onlyAdmin {
+        require(_libThreshold > 0 && _rlibThreshold > 0, "Invalid");
+        libThreshold = _libThreshold;
+        rlibThreshold = _rlibThreshold;
     }
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/utils/TokenTimelock.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
 import "./distribute.sol";
+import "./lockTokens.sol";
 
 /**
 * @title TokenStaking
@@ -147,7 +147,8 @@ contract TokenStaking {
         TokenTimelock lock = new TokenTimelock(
             depositToken,
             msg.sender,
-            block.timestamp + lockDuration
+            block.timestamp + lockDuration,
+            address(this)
         );
 
         requestNewFeeExcludedAddress(address(lock), true);
