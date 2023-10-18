@@ -31,8 +31,7 @@ contract Distributor {
     mapping(address => mapping(uint => uint[])) private inheritanceProgress;
 
     // track address locks
-    mapping(address => mapping(uint => mapping(uint => Allocation)))
-        private epochAllocation;
+    mapping(address => mapping(uint => mapping(uint => Allocation))) private epochAllocation;
     mapping(address => mapping(uint => uint)) private nounce;
 
     // track epoch total shares and token to claimable at the end of the epoch
@@ -95,12 +94,17 @@ contract Distributor {
     // contract exclusive functions
 
     /**
-     * @dev Calculate the number of tokens to reward for the epoch then increment epoch
+     * @dev Increment epoch and initialize dividends calcul
      */
     function updateEpoch() external {
         require(
             nextDistributionTimestamp <= block.timestamp,
             "Not time for new epoch"
+        );
+        require(
+            dividendsProgress[epochHeight - 1][0] >=
+                dividendsProgress[epochHeight - 1][1],
+            "All dividends from previous epoch are not yet proccessed"
         );
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
