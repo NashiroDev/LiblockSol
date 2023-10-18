@@ -18,15 +18,20 @@ contract Governance {
     uint public proposalCount;
     uint256 public balancingCount;
     uint256 public maxPower;
-    AggregatorV3Interface private dataFeed;
+
     uint8 private libThreshold;
     uint8 private rlibThreshold;
     address private admin;
 
+    AggregatorV3Interface private dataFeed;
+    
+    // Track balancing of min VP to submit a proposals
     mapping(uint256 => Balancing) public balancing;
 
+    // Track VP used per address and balancing epoch
     mapping(address => mapping(uint => uint)) public virtualPowerUsed;
 
+    // Track created proposals & votes on them
     mapping(uint => Proposal) public proposals;
     mapping(address => mapping(uint => bool)) public voted;
 
@@ -122,7 +127,7 @@ contract Governance {
     * This function can only be called by the admin
     * This function can only be called each 7days
     */
-    function balanceFloor() external onlyAdmin {
+    function balanceFloor() external {
         require(balancing[balancingCount].nextTimestamp >= block.timestamp);
         balancingCount++;
 
@@ -364,8 +369,23 @@ contract Governance {
                 balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
     }
 
+    /**
+    * @dev Deduce VP needed for creating a new proposal
+    * @param _address The address to deduce the VP
+    */
     function deduceVirtualPower(address _address) private {
         require(rlibToken.getVotes(_address) - virtualPowerUsed[_address][balancingCount] >= balancing[balancingCount].epochFloor, "Not enough rLIB VP left");
         virtualPowerUsed[_address][balancingCount] += balancing[balancingCount].epochFloor;
+    }
+
+    /**
+    * @dev Allow admin to alter thresholds
+    * @param _libThreshold Threshold for the LIB token.
+    * @param _rlibThreshold Threshold for the rLIB token.
+    */
+    function setNewThresholds(uint8 _libThreshold, uint8 _rlibThreshold) external onlyAdmin {
+        require(_libThreshold > 0 && _rlibThreshold > 0, "Invalid");
+        libThreshold = _libThreshold;
+        rlibThreshold = _rlibThreshold;
     }
 }
