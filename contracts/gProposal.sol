@@ -10,7 +10,7 @@ contract gProposal {
     event NewProposal(uint indexed proposalId, string title, address creator);
     event ProposalExecuted(uint indexed proposalId, bool accepted);
     event Vote(uint indexed proposalId, address voter);
-    event BalancingExecuted(uint balancingId);
+    event BalancingExecuted(uint balancingId, uint floor);
 
     Liblock public libToken;
     rLiblock public rlibToken;
@@ -155,7 +155,7 @@ contract gProposal {
             nextPriceTaget
         );
 
-        emit BalancingExecuted(balancingCount);
+        emit BalancingExecuted(balancingCount, epochFloor);
     }
 
     /**
@@ -174,7 +174,6 @@ contract gProposal {
 
         deduceVirtualPower(msg.sender);
 
-        proposalCount++;
         proposals[proposalCount] = Proposal(
             proposalCount,
             _title,
@@ -188,8 +187,9 @@ contract gProposal {
             0,
             block.timestamp + 7 days
         );
+        proposalCount++;
 
-        emit NewProposal(proposalCount, _title, msg.sender);
+        emit NewProposal(proposalCount - 1, _title, msg.sender);
     }
 
     /**
@@ -226,6 +226,7 @@ contract gProposal {
             uint votingEndTime
         )
     {
+        require(_proposalId < proposalCount, "No proposal exist for this id");
         Proposal storage proposal = proposals[_proposalId];
         return (
             proposal.id,
@@ -319,6 +320,7 @@ contract gProposal {
     function calculateProgression(
         uint _proposalId
     ) external view returns (uint, uint) {
+        require(_proposalId < proposalCount, "No proposal exist for this id");
         Proposal storage proposal = proposals[_proposalId];
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +

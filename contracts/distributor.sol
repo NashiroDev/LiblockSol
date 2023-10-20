@@ -101,11 +101,13 @@ contract Distributor {
             nextDistributionTimestamp <= block.timestamp,
             "Not time for new epoch"
         );
-        require(
+        if (epochHeight != 0) {
+            require(
             dividendsProgress[epochHeight - 1][0] >=
                 dividendsProgress[epochHeight - 1][1],
             "All dividends from previous epoch are not yet proccessed"
         );
+        }
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
         epochTotalAllowance[epochHeight].epochClaimableToken =
@@ -117,8 +119,10 @@ contract Distributor {
         nextDistributionTimestamp = lastDistributionTimestamp + 30 days;
         epochHeight++;
 
-        generateDividendsData();
-
+        if (epochHeight != 0) {
+            generateDividendsData();
+        }
+        
         emit EpochUpdated(epochHeight, totalUnclaimed);
     }
 
@@ -140,6 +144,7 @@ contract Distributor {
      * @dev Updates the address dividends by calculating the claimable tokens for each address in the range for the last epoch.
      */
     function updateAddressDividends() external {
+        require(epochHeight > 0, "There's no reward for epoch -1");
         uint workingEpoch = epochHeight - 1;
         require(
             dividendsProgress[workingEpoch][0] >=
@@ -180,6 +185,7 @@ contract Distributor {
      * @param _address The address to calculate the next epoch's inheritance for.
      */
     function currentEpochInheritance(address _address) external {
+        require(epochHeight > 0, "There's nothing to inherit from epoch -1");
         uint workingEpoch = epochHeight - 1;
         require(
             inheritanceProgress[_address][workingEpoch].length == 2,
@@ -372,6 +378,7 @@ contract Distributor {
         view
         returns (uint amount, uint lockTimestamp, uint unlockTimestamp)
     {
+        require(_epoch <= epochHeight, "Epoch hasn't appened yet");
         return (
             epochAllocation[_address][_epoch][_nounce].amount,
             epochAllocation[_address][_epoch][_nounce].lockTimestamp,
@@ -388,6 +395,7 @@ contract Distributor {
     function getEpochShares(
         uint _epoch
     ) external view returns (uint epochTotalShares, uint epochTotalTokens) {
+        require(_epoch <= epochHeight, "Epoch hasn't appened yet");
         return (
             epochTotalAllowance[_epoch].epochShares,
             epochTotalAllowance[_epoch].epochClaimableToken
@@ -405,6 +413,7 @@ contract Distributor {
         address _address,
         uint _epoch
     ) external view returns (uint epochShares, uint epochTokens) {
+        require(_epoch <= epochHeight, "Epoch hasn't appened yet");
         return (
             shares[_address][_epoch].epochShares,
             shares[_address][_epoch].epochClaimableToken
@@ -421,6 +430,7 @@ contract Distributor {
         address _address,
         uint _epoch
     ) external view returns (uint epochNounce) {
+        require(_epoch <= epochHeight, "Epoch hasn't appened yet");
         return nounce[_address][_epoch] - 1;
     }
 
@@ -444,6 +454,7 @@ contract Distributor {
     function getEpochProccessAdvancement(
         uint _epoch
     ) external view returns (uint processed, uint totalToProcess) {
+        require(_epoch < epochHeight, "Epoch hasn't appened yet");
         return (dividendsProgress[_epoch][0], dividendsProgress[_epoch][1]);
     }
 
@@ -458,6 +469,7 @@ contract Distributor {
         address _address,
         uint _epoch
     ) external view returns (uint processed, uint totalToProcess) {
+        require(_epoch < epochHeight, "Epoch hasn't appened yet");
         return (
             inheritanceProgress[_address][_epoch][0],
             inheritanceProgress[_address][_epoch][1]
