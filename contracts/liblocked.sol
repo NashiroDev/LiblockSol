@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
-import "./distribute.sol";
+import "./distributor.sol";
 import "./lockTokens.sol";
 
 /**
