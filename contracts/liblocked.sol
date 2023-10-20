@@ -11,7 +11,7 @@ import "./lockTokens.sol";
 * @title TokenStaking
 * @dev A contract for staking tokens and earning rewards based on different lock durations and amount locked
 */
-contract TokenStaking {
+contract Liblocked {
     Liblock private immutable depositToken; // The token to stake
     rLiblock private immutable rewardToken; // The token rewarded for a stake
     Distributor private immutable shareDistributionContract; // The contract responsible for distributing shares of the fee pool

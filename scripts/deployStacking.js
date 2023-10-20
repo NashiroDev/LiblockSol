@@ -1,5 +1,5 @@
 async function main() {
-    const Stacking = await ethers.getContractFactory("TokenStaking");
+    const Stacking = await ethers.getContractFactory("Liblocked");
   
     // Start deployment, returning a promise that resolves to a contract object
     const stacking = await Stacking.deploy('LIB', 'rLIB', 'Distributor');

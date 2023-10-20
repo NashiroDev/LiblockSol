@@ -5,7 +5,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
 
-contract Governance {
+contract gProposal {
 
     event NewProposal(uint indexed proposalId, string title, address creator);
     event ProposalExecuted(uint indexed proposalId, bool accepted);
