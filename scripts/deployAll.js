@@ -24,7 +24,7 @@ async function main() {
   const proposal = await gProposal.deploy(liblock.address);
   console.log("gProposal contract deployed to address:", proposal.address, "on", network.name);
   await proposal.deployed();
-  await verifyContract(proposal.address, [liblock.address]);
+  await verifyContract(proposal.address, [liblock.address, rLIB.address]);
 
   const distributor = await Distributor.deploy(liblock.address);
   console.log("Distributor contract deployed to address:", distributor.address, "on", network.name);
