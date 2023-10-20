@@ -4,14 +4,14 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
-import "./distribute.sol";
+import "./distributor.sol";
 import "./lockTokens.sol";
 
 /**
 * @title TokenStaking
 * @dev A contract for staking tokens and earning rewards based on different lock durations and amount locked
 */
-contract TokenStaking {
+contract Liblocked {
     Liblock private immutable depositToken; // The token to stake
     rLiblock private immutable rewardToken; // The token rewarded for a stake
     Distributor private immutable shareDistributionContract; // The contract responsible for distributing shares of the fee pool

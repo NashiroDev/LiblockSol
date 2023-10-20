@@ -1,9 +1,9 @@
 async function main() {
-  const pGovernance = await ethers.getContractFactory("Governance");
+  const gProposal = await ethers.getContractFactory("gProposal");
 
   // Start deployment, returning a promise that resolves to a contract object
-  const governance = await pGovernance.deploy('0xd8bD9d1d5d3a3672348dF21Eb0541f7c920d4310');
-  console.log("Contract deployed to address:", governance.address);
+  const proposal = await gProposal.deploy('LIB');
+  console.log("Contract deployed to address:", proposal.address);
 }
 
 main()
