@@ -147,7 +147,7 @@ contract Distributor {
         require(epochHeight > 0, "There's no reward for epoch -1");
         uint workingEpoch = epochHeight - 1;
         require(
-            dividendsProgress[workingEpoch][0] >=
+            dividendsProgress[workingEpoch][0] <
                 dividendsProgress[workingEpoch][1],
             "All dividends are already proccessed"
         );
