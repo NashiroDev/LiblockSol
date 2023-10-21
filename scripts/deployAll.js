@@ -31,8 +31,8 @@ async function main() {
   await distributor.deployed();
   await verifyContract(distributor.address, [liblock.address]);
 
-  const stacking = await Stacking.deploy(liblock.address, rLIB.address, distributor.address, "on", network.name);
-  console.log("Stacking contract deployed to address:", stacking.address);
+  const stacking = await Stacking.deploy(liblock.address, rLIB.address, distributor.address);
+  console.log("Stacking contract deployed to address:", stacking.address, "on", network.name);
   await stacking.deployed();
   await verifyContract(stacking.address, [liblock.address, rLIB.address, distributor.address]);
 
