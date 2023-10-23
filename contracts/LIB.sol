@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
@@ -10,6 +10,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     // Init section
 
     address private admin;
+    address private moderator;
 
     // setting initial destination wallet address for fees
     address private devWallet =
@@ -29,6 +30,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         _mint(address(this), 74500000 * 10 ** decimals());
         _mint(address(msg.sender), 500000 * 10 ** decimals());
         admin = address(msg.sender);
+        moderator = address(msg.sender);
         liblockFondationWallet = admin;
     }
 
@@ -36,6 +38,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
 
     modifier onlyAdmin() {
         require(isAdmin(msg.sender), "Not admin");
+        _;
+    }
+
+    modifier onlyModerator() {
+        require(isModerator(msg.sender), "Not moderator");
         _;
     }
 
@@ -48,6 +55,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         require(account != address(this), "Invalid address");
         admin = account;
     }
+    function setModerator(address account) external onlyModerator {
+        require(account != address(0), "Invalid address");
+        require(account != address(this), "Invalid address");
+        moderator = account;
+    }
 
     /**
      * @dev Checks if an address is the admin address.
@@ -56,6 +68,9 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
      */
     function isAdmin(address account) private view returns (bool) {
         return admin == account;
+    }
+    function isModerator(address account) private view returns (bool) {
+        return moderator == account;
     }
 
     // overwrite required function
@@ -188,7 +203,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
      * @dev Sets the distribution contract address.
      * @param _address The new distribution contract address.
      */
-    function setDistributionContract(address _address) external onlyAdmin {
+    function setDistributionContract(address _address) external onlyModerator {
         require(_address != address(0), "Can not set address 0");
         require(_address != address(this), "Can not set this contract");
         distributionContract = address(_address);

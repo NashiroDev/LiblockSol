@@ -29,7 +29,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 999,
           },
         },
       }
@@ -56,8 +56,27 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
       saveDeployments: true,
     },
+    scrollSepolia: {
+      chainId: 534351,
+      url: process.env.SCROLL_SEPOLIA_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+      saveDeployments: true,
+    },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: {
+      scrollSepolia: 'dummy',
+      goerli: process.env.ETHERSCAN_API_KEY,
+    },
+    customChains: [
+      {
+        network: "scrollSepolia",
+        chainId: 534351,
+        urls: {
+          apiURL: 'https://sepolia-blockscout.scroll.io/api',
+          browserURL: 'https://sepolia-blockscout.scroll.io/',
+        },
+      }
+    ]
   }
 };
