@@ -1,9 +1,11 @@
-import { ethers, network, run } from "hardhat";
-import fs from 'fs';
-import path from 'path';
+const { ethers, network, run } = require("hardhat");
+const fs = require('fs');
+const path = require('path');
 
 async function main() {
   const csvFilePath = path.join(__dirname, '../reports/report.csv');
+
+  await run("compile");
 
   const Liblock = await ethers.getContractFactory("Liblock");
   const rLiblock = await ethers.getContractFactory("rLiblock");
@@ -21,7 +23,7 @@ async function main() {
   await rLIB.deployed();
   await verifyContract(rLIB.address);
 
-  const proposal = await gProposal.deploy(liblock.address);
+  const proposal = await gProposal.deploy(liblock.address, rLIB.address);
   console.log("gProposal contract deployed to address:", proposal.address, "on", network.name);
   await proposal.deployed();
   await verifyContract(proposal.address, [liblock.address, rLIB.address]);
@@ -64,12 +66,17 @@ async function main() {
   console.log("admin set for Distributor!");
 }
 
-async function verifyContract(contractAddress, args=[]) {
+async function verifyContract(contractAddress, args = []) {
   console.log(`Verifying contract at address: ${contractAddress}`);
-  await run(`verify:verify`, {
-    address: contractAddress,
-    constructorArguments: args,
-  });
+  try {
+    stringArgs = [...args];
+    await run(`verify:verify`, {
+      address: contractAddress,
+      constructorArguments: stringArgs,
+    });
+  } catch (error) {
+    console.error(`Error occurred while verifying contract: ${error}`);
+  }
 }
 
 main()
