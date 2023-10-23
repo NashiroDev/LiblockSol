@@ -2,6 +2,8 @@ const { ethers, network, run } = require("hardhat");
 const fs = require('fs');
 const path = require('path');
 
+// npx hardhat run --network scrollSepolia scripts/deployAll.js
+
 async function main() {
   const csvFilePath = path.join(__dirname, '../reports/report.csv');
 
@@ -33,10 +35,15 @@ async function main() {
   console.log("Stacking contract deployed to address:", stacking.address, "on", network.name);
   await stacking.deployed();
 
-  const csvContent = `Liblock:${liblock.address}\nrLiblock:${rLIB.address}\nProposal:${proposal.address}\nDistributor:${distributor.address}\nStacking:${stacking.address}\n- * - * -\n`;
+  let csvContent = `Liblock:${liblock.address},\n`;
+  csvContent += `rLiblock:${rLIB.address},\n`;
+  csvContent += `Proposal:${proposal.address},${liblock.address},${rLIB.address}\n`;
+  csvContent += `Distributor:${distributor.address},${liblock.address}\n`;
+  csvContent += `Stacking:${stacking.address},${liblock.address},${rLIB.address},${distributor.address}\n`;
+  csvContent += `- * - * -\n`;
   fs.appendFileSync(csvFilePath, csvContent);
-  console.log("Writed to csv :\n", csvContent);
-  console.log("Initializing contratcs mutual state dependencies");
+  console.log("\nWrited to csv :\n", csvContent);
+  console.log("\nInitializing contratcs mutual state dependencies\n");
 
   const liblockWithSigner = await Liblock.attach(liblock.address).connect(ethers.provider.getSigner());
   const rliblockWithSigner = await rLiblock.attach(rLIB.address).connect(ethers.provider.getSigner());
@@ -45,22 +52,22 @@ async function main() {
   const transaction0 = await liblockWithSigner.setDistributionContract(distributor.address);
   await transaction0.wait();
 
-  console.log(`setDistributionContract on {$liblock.address} set to {$distributor.address}!`);
+  console.log("setDistributionContract on ", liblock.address, " set to ", distributor.address);
 
   const transaction1 = await liblockWithSigner.setAdmin(stacking.address);
   await transaction1.wait();
 
-  console.log(`setAdmin on {$liblock.address} set to {$stacking.address}!`);
+  console.log("setAdmin on ", liblock.address, " set to ", stacking.address);
 
   const transaction2 = await rliblockWithSigner.setAdmin(stacking.address);
   await transaction2.wait();
 
-  console.log(`setAdmin on {$rLIB.address} set to {$stacking.address}!`);
+  console.log("setAdmin on ", rLIB.address, " set to ", stacking.address);
 
   const transaction3 = await distributorWithSigner.setAdmin(stacking.address);
   await transaction3.wait();
 
-  console.log(`setAdmin on {$distributor.address} set to {$stacking.address}!`);
+  console.log("setAdmin on ", distributor.address, " set to ", stacking.address);
 }
 
 main()

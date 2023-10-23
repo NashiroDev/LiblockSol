@@ -2,13 +2,21 @@ const { run } = require("hardhat");
 const fs = require('fs');
 const path = require('path');
 
-async function verifyContract(contractAddress, args = []) {
-    console.log(`Verifying contract at address: ${contractAddress}`);
+// npx hardhat run --network scrollSepolia scripts/verifyAll.js
+
+async function verifyContract(contractAddress, args) {
+    console.log(`\nVerifying contract at address: ${contractAddress}`);
     try {
-        await run(`verify:verify`, {
-            address: contractAddress,
-            constructorArguments: args,
-        });
+        if (args.length === 1 && args[0] === '') {
+            await run(`verify:verify`, {
+                address: contractAddress,
+            });
+        } else {
+            await run(`verify:verify`, {
+                address: contractAddress,
+                constructorArguments: [...args],
+            });
+        }
         return true;
     } catch (error) {
         console.error(`Error occurred while verifying contract: ${error}`);
@@ -27,8 +35,9 @@ function readContractAddressesFromCsv() {
         if (line === '- * - * -') {
             break;
         }
-        const [contractName, contractAddress] = line.split(':');
-        contractData[contractName.trim()] = contractAddress.trim();
+        const [contractName, contractAddresses] = line.split(':');
+        const addresses = contractAddresses.split(',');
+        contractData[contractName.trim()] = addresses.map(address => address.trim());
     }
 
     return contractData;
@@ -39,9 +48,8 @@ async function main() {
     const verificationResults = {};
 
     for (const contractName in contractData) {
-        const contractAddress = contractData[contractName];
-        const args = contractAddress.split('\n').map(address => address.trim());
-        const isVerified = await verifyContract(contractAddress, args);
+        const contractAddresses = contractData[contractName];
+        const isVerified = await verifyContract(contractAddresses[0], contractAddresses.slice(1));
 
         verificationResults[contractName] = isVerified;
     }
