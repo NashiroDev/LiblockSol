@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
@@ -128,7 +128,7 @@ contract gProposal {
     * This function can only be called each 7days
     */
     function balanceFloor() external {
-        require(balancing[balancingCount].nextTimestamp >= block.timestamp);
+        require(balancing[balancingCount].nextTimestamp < block.timestamp, "Not time yet");
         balancingCount++;
 
         (

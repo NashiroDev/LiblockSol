@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import "./LIB.sol";
 
@@ -166,7 +166,7 @@ contract Distributor {
 
         for (
             uint i = dividendsProgress[workingEpoch][0];
-            i <= dividendsProgress[workingEpoch][0] + looper;
+            i < dividendsProgress[workingEpoch][0] + looper;
             i++
         ) {
             address _address = epochActiveAddress[workingEpoch][i];
@@ -196,7 +196,7 @@ contract Distributor {
             "Address had no allocation in last epoch"
         );
         require(
-            inheritanceProgress[_address][workingEpoch][0] >=
+            inheritanceProgress[_address][workingEpoch][0] <
                 inheritanceProgress[_address][workingEpoch][1],
             "All inheritances are already proccessed"
         );
@@ -212,7 +212,7 @@ contract Distributor {
 
         for (
             uint x = inheritanceProgress[_address][workingEpoch][0];
-            x <= inheritanceProgress[_address][workingEpoch][0] + looper;
+            x < inheritanceProgress[_address][workingEpoch][0] + looper;
             x++
         ) {
             if (

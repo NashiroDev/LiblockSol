@@ -43,7 +43,7 @@ async function main() {
   const rliblockWithSigner = await rLiblock.attach(rLIB.address).connect(ethers.provider.getSigner());
   const distributorWithSigner = await Distributor.attach(distributor.address).connect(ethers.provider.getSigner());
 
-  const transaction0 = await liblockWithSigner.setDistributionContract(stacking.address);
+  const transaction0 = await liblockWithSigner.setDistributionContract(distributor.address);
   await transaction0.wait();
 
   console.log("setDistributionContract set!");

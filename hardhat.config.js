@@ -29,7 +29,7 @@ module.exports = {
         settings: {
           optimizer: {
             enabled: true,
-            runs: 200,
+            runs: 999,
           },
         },
       }
@@ -53,6 +53,12 @@ module.exports = {
     // },
     goerli: {
       url: process.env.GOERLI_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+      saveDeployments: true,
+    },
+    scrollsepo: {
+      chainId: 534351,
+      url: process.env.SCROLL_SEPOLIA_RPC_URL,
       accounts: [process.env.PRIVATE_KEY],
       saveDeployments: true,
     },
