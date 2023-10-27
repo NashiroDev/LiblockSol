@@ -187,9 +187,10 @@ contract Liblocked {
     * @param _nounce The nounce of the deposit with tokens to be withdrawn
     */
     function withdrawTokens(uint _nounce) external {
-        TokenTimelock lock = ledger[msg.sender][_nounce].lock;
-        uint amountIssued = ledger[msg.sender][_nounce].amountIssued;
-        uint amountDeposited = ledger[msg.sender][_nounce].amountDeposited;
+        Ledger memory l = ledger[msg.sender][_nounce];
+        TokenTimelock lock = l.lock;
+        uint amountIssued = l.amountIssued;
+        uint amountDeposited = l.amountDeposited;
 
         require(
             rewardToken.allowance(msg.sender, address(this)) >= amountIssued,
@@ -230,8 +231,9 @@ contract Liblocked {
             _nounce < nounce[_address],
             "This nounce do not exist for this address"
         );
-        require(block.timestamp < ledger[_address][_nounce].lockUntil, "Tokens already unlocked");
-        return ledger[_address][_nounce].lockUntil - block.timestamp;
+        Ledger memory l = ledger[_address][_nounce];
+        require(block.timestamp < l.lockUntil, "Tokens already unlocked");
+        return l.lockUntil - block.timestamp;
     }
 
     /**
