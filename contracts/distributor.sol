@@ -161,7 +161,7 @@ contract Distributor {
             ETA.epochShares;
         uint8 looper = DP[1] - DP[0] >= 100 ? 100 : uint8(DP[1] - DP[0]);
 
-        for (uint i = DP[0]; i < DP[0] + looper; i++) {
+        for (uint i = DP[0]; i < DP[0] + looper; ) {
             address _address = epochActiveAddress[workingEpoch][i];
             shares[_address][workingEpoch].epochClaimableToken =
                 (tokenPerShare * shares[_address][workingEpoch].epochShares) /
@@ -169,8 +169,9 @@ contract Distributor {
             totalAllocation[_address] += shares[_address][workingEpoch]
                 .epochClaimableToken;
             generateInheritanceProgress(_address);
+            unchecked{i++;}
         }
-        dividendsProgress[workingEpoch][0] += looper;
+        unchecked {dividendsProgress[workingEpoch][0] += looper;}
     }
 
     /**
@@ -199,7 +200,7 @@ contract Distributor {
 
         uint8 looper = IP[1] - IP[0] >= 10 ? 10 : uint8(IP[1] - IP[0]);
 
-        for (uint x = IP[0]; x < IP[0] + looper; x++) {
+        for (uint x = IP[0]; x < IP[0] + looper; ) {
             Allocation memory EA = epochAllocation[_address][workingEpoch][x];
             if (EA.unlockTimestamp > nextDistributionTimestamp) {
                 uint _amount = EA.amount;
@@ -231,8 +232,9 @@ contract Distributor {
                     epochActiveAddress[eh].push(_address);
                 }
             }
+            unchecked{x++;}
         }
-        inheritanceProgress[_address][workingEpoch][0] += looper;
+        unchecked {inheritanceProgress[_address][workingEpoch][0] += looper;}
     }
 
     /**
@@ -296,8 +298,10 @@ contract Distributor {
             "Amount exceeds address allocation"
         );
 
-        totalAllocation[sender] -= amount;
-        totalUnclaimed -= amount;
+        unchecked {
+            totalAllocation[sender] -= amount;
+            totalUnclaimed -= amount;
+        }
 
         feeGeneratingToken.transfer(sender, amount);
 
