@@ -11,15 +11,15 @@ contract gProposal {
     event Vote(uint indexed proposalId, address voter);
     event BalancingExecuted(uint balancingId, uint floor);
 
-    Liblock public libToken;
-    rLiblock public rlibToken;
+    Liblock public immutable libToken;
+    rLiblock public immutable rlibToken;
 
     uint public proposalCount;
-    uint256 public balancingCount;
-    uint256 public maxPower;
+    uint public balancingCount;
+    uint public maxPower;
 
-    uint8 private libThreshold;
-    uint8 private rlibThreshold;
+    uint16 private libThreshold;
+    uint16 private rlibThreshold;
     address private admin;
 
     AggregatorV3Interface private dataFeed;
@@ -132,6 +132,7 @@ contract gProposal {
             "Not time yet"
         );
         balancingCount++;
+        uint bc = balancingCount;
 
         (
             ,
@@ -142,14 +143,14 @@ contract gProposal {
         ) = /* uint80 answeredInRound */
             dataFeed.latestRoundData();
 
-        uint nextPriceTaget = balancing[balancingCount - 1].epochPriceTarget +
-            balancing[balancingCount - 1].epochPriceTarget /
+        uint nextPriceTaget = balancing[bc - 1].epochPriceTarget +
+            balancing[bc - 1].epochPriceTarget /
             2000;
 
         uint epochFloor = ((nextPriceTaget * 10 ** 18) / uint(answer));
 
-        balancing[balancingCount] = Balancing(
-            balancingCount,
+        balancing[bc] = Balancing(
+            bc,
             block.number,
             answer,
             timeStamp,
@@ -158,7 +159,7 @@ contract gProposal {
             nextPriceTaget
         );
 
-        emit BalancingExecuted(balancingCount, epochFloor);
+        emit BalancingExecuted(bc, epochFloor);
     }
 
     /**
@@ -175,13 +176,16 @@ contract gProposal {
             "Invalid proposal details"
         );
 
-        deduceVirtualPower(msg.sender);
+        address sender = msg.sender;
+        uint pc = proposalCount;
 
-        proposals[proposalCount] = Proposal(
-            proposalCount,
+        deduceVirtualPower(sender);
+
+        proposals[pc] = Proposal(
+            pc,
             _title,
             _description,
-            msg.sender,
+            sender,
             false,
             false,
             0,
@@ -192,7 +196,7 @@ contract gProposal {
         );
         proposalCount++;
 
-        emit NewProposal(proposalCount - 1, _title, msg.sender);
+        emit NewProposal(pc - 1, _title, sender);
     }
 
     /**
@@ -255,8 +259,9 @@ contract gProposal {
         uint _proposalId,
         string memory _vote
     ) external onlyDelegatee {
+        address sender = msg.sender;
         require(
-            !voted[msg.sender][_proposalId],
+            !voted[sender][_proposalId],
             "Already voted for this proposal"
         );
 
@@ -268,10 +273,10 @@ contract gProposal {
 
         require(!proposal.executed, "Proposal already executed");
 
-        uint votePower = libToken.getVotes(msg.sender) +
-            rlibToken.getVotes(msg.sender);
+        uint votePower = libToken.getVotes(sender) +
+            rlibToken.getVotes(sender);
 
-        voted[msg.sender][_proposalId] = true;
+        voted[sender][_proposalId] = true;
         proposal.uniqueVotes++;
 
         if (votePower > maxPower) {
@@ -312,7 +317,7 @@ contract gProposal {
             }
         }
 
-        emit Vote(_proposalId, msg.sender);
+        emit Vote(_proposalId, sender);
     }
 
     /**
@@ -344,6 +349,7 @@ contract gProposal {
      */
     function checkProposalOutcome(uint _proposalId) private {
         Proposal storage proposal = proposals[_proposalId];
+        require(block.timestamp >= proposal.votingEndTime, "The proposal is still being voted");
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
@@ -368,6 +374,14 @@ contract gProposal {
         }
 
         emit ProposalExecuted(_proposalId, proposal.accepted);
+    }
+
+    /**
+    * @dev Checks the outcome of a proposal
+    * @param _proposalId The ID of the proposal
+    */
+    function executeProposal(uint _proposalId) external {
+        checkProposalOutcome(_proposalId);
     }
 
     /**

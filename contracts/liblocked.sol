@@ -57,11 +57,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock17(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 100, 17 days);
+        lockTokens(amount, 100, 17 days, sender);
     }
 
     /**
@@ -69,11 +70,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock31(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 105, 31 days);
+        lockTokens(amount, 105, 31 days, sender);
     }
 
     /**
@@ -81,11 +83,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock93(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 125, 93 days);
+        lockTokens(amount, 125, 93 days, sender);
     }
 
     /**
@@ -93,11 +96,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock186(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 145, 186 days);
+        lockTokens(amount, 145, 186 days, sender);
     }
 
     /**
@@ -105,11 +109,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock279(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 160, 279 days);
+        lockTokens(amount, 160, 279 days, sender);
     }
 
     /**
@@ -117,11 +122,12 @@ contract Liblocked {
     * @param amount The amount of tokens to lock
     */
     function lock365(uint amount) external {
+        address sender = msg.sender;
         require(
-            amount <= depositToken.balanceOf(msg.sender),
+            amount <= depositToken.balanceOf(sender),
             "Not enough tokens"
         );
-        lockTokens(amount, 170, 365 days);
+        lockTokens(amount, 170, 365 days, sender);
     }
 
     /**
@@ -133,53 +139,56 @@ contract Liblocked {
     function lockTokens(
         uint256 amount,
         uint8 ratio,
-        uint32 lockDuration
+        uint32 lockDuration,
+        address sender
     ) private {
         require(amount > 0, "Amount must be greater than zero");
         require(ratio <= 200, "Ratio is too high");
         require(
-            depositToken.allowance(msg.sender, address(this)) >= amount,
+            depositToken.allowance(sender, address(this)) >= amount,
             "Not enough LIB allowance"
         );
+
+        uint bt = block.timestamp;
 
         uint256 rewardAmount = (amount * ratio) / 10 ** 2;
 
         TokenTimelock lock = new TokenTimelock(
             depositToken,
-            msg.sender,
-            block.timestamp + lockDuration,
+            sender,
+            bt + lockDuration,
             address(this)
         );
 
         requestNewFeeExcludedAddress(address(lock), true);
 
-        depositToken.transferFrom(msg.sender, address(lock), amount);
+        depositToken.transferFrom(sender, address(lock), amount);
         requestMint(rewardAmount);
 
-        requestDelegationDeposit(address(lock), msg.sender);
-        requestDelegationReward(msg.sender, msg.sender);
+        requestDelegationDeposit(address(lock), sender);
+        requestDelegationReward(sender, sender);
 
-        ledger[msg.sender][nounce[msg.sender]] = Ledger(
+        ledger[sender][nounce[sender]] = Ledger(
             amount,
             rewardAmount,
             ratio,
-            block.timestamp,
-            block.timestamp + lockDuration,
+            bt,
+            bt + lockDuration,
             lock
         );
 
         sendSharesData(
-            msg.sender,
+            sender,
             rewardAmount,
-            ledger[msg.sender][nounce[msg.sender]].lockedAt,
-            ledger[msg.sender][nounce[msg.sender]].lockUntil
+            bt,
+            bt + lockDuration
         );
 
-        nounce[msg.sender]++;
+        nounce[sender]++;
         totalDepositedToken += amount;
         totalIssuedToken += rewardAmount;
 
-        emit TokensLocked(msg.sender, amount, ledger[msg.sender][nounce[msg.sender]].lockUntil);
+        emit TokensLocked(sender, amount, bt + lockDuration);
     }
 
     /**
@@ -187,17 +196,18 @@ contract Liblocked {
     * @param _nounce The nounce of the deposit with tokens to be withdrawn
     */
     function withdrawTokens(uint _nounce) external {
-        Ledger memory l = ledger[msg.sender][_nounce];
+        address sender = msg.sender;
+        Ledger memory l = ledger[sender][_nounce];
         TokenTimelock lock = l.lock;
         uint amountIssued = l.amountIssued;
         uint amountDeposited = l.amountDeposited;
 
         require(
-            rewardToken.allowance(msg.sender, address(this)) >= amountIssued,
+            rewardToken.allowance(sender, address(this)) >= amountIssued,
             "Not enough rLIB allowance"
         );
         require(
-            rewardToken.balanceOf(msg.sender) >= amountIssued,
+            rewardToken.balanceOf(sender) >= amountIssued,
             "Not enough rLIB to withdraw"
         );
         require(
@@ -209,12 +219,12 @@ contract Liblocked {
         requestBurn(amountIssued);
 
         requestNewFeeExcludedAddress(address(lock), false);
-        requestDelegationDeposit(msg.sender, msg.sender);
+        requestDelegationDeposit(sender, sender);
 
         totalDepositedToken -= amountDeposited;
         totalIssuedToken -= amountIssued;
 
-        emit TokensWithdrawn(msg.sender, amountIssued);
+        emit TokensWithdrawn(sender, amountIssued);
     }
 
     /**
@@ -231,9 +241,10 @@ contract Liblocked {
             _nounce < nounce[_address],
             "This nounce do not exist for this address"
         );
+        uint bt = block.timestamp;
         Ledger memory l = ledger[_address][_nounce];
-        require(block.timestamp < l.lockUntil, "Tokens already unlocked");
-        return l.lockUntil - block.timestamp;
+        require(bt < l.lockUntil, "Tokens already unlocked");
+        return l.lockUntil - bt;
     }
 
     /**

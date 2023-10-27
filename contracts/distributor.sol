@@ -102,19 +102,20 @@ contract Distributor {
             nextDistributionTimestamp <= block.timestamp,
             "Not time for new epoch"
         );
-        if (epochHeight != 0) {
+        uint eh = epochHeight;
+        if (eh != 0) {
             require(
-                dividendsProgress[epochHeight - 1][0] >=
-                    dividendsProgress[epochHeight - 1][1],
+                dividendsProgress[eh - 1][0] >=
+                    dividendsProgress[eh - 1][1],
                 "All dividends from previous epoch are not yet proccessed"
             );
         }
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
-        epochTotalAllowance[epochHeight].epochClaimableToken =
+        epochTotalAllowance[eh].epochClaimableToken =
             epochEndBalance -
             totalUnclaimed;
-        totalUnclaimed += epochTotalAllowance[epochHeight].epochClaimableToken;
+        totalUnclaimed += epochTotalAllowance[eh].epochClaimableToken;
 
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 30 days;
@@ -124,7 +125,7 @@ contract Distributor {
             generateDividendsData();
         }
 
-        emit EpochUpdated(epochHeight, totalUnclaimed);
+        emit EpochUpdated(eh + 1, totalUnclaimed);
     }
 
     function generateDividendsData() private {
@@ -179,6 +180,7 @@ contract Distributor {
     function currentEpochInheritance(address _address) external {
         require(epochHeight > 0, "There's nothing to inherit from epoch -1");
         uint workingEpoch = epochHeight - 1;
+        uint eh = epochHeight;
         require(
             inheritanceProgress[_address][workingEpoch].length == 2,
             "Address dividends need to be updated first"
@@ -204,8 +206,8 @@ contract Distributor {
                 uint _unlockTimestamp = EA.unlockTimestamp;
                 uint _lockTimestamp = EA.lockTimestamp;
 
-                epochAllocation[_address][epochHeight][
-                    nounce[_address][epochHeight]
+                epochAllocation[_address][eh][
+                    nounce[_address][eh]
                 ] = Allocation(_amount, _lockTimestamp, _unlockTimestamp);
 
                 uint sharesForLock = (_amount *
@@ -219,14 +221,14 @@ contract Distributor {
                                 ? lastDistributionTimestamp
                                 : _lockTimestamp
                         ))) / 10 ** 5;
-                shares[_address][epochHeight].epochShares += sharesForLock;
-                epochTotalAllowance[epochHeight].epochShares += sharesForLock;
+                shares[_address][eh].epochShares += sharesForLock;
+                epochTotalAllowance[eh].epochShares += sharesForLock;
 
-                nounce[_address][epochHeight]++;
+                nounce[_address][eh]++;
 
-                if (!isActive[epochHeight][_address]) {
-                    isActive[epochHeight][_address] = true;
-                    epochActiveAddress[epochHeight].push(_address);
+                if (!isActive[eh][_address]) {
+                    isActive[eh][_address] = true;
+                    epochActiveAddress[eh].push(_address);
                 }
             }
         }
@@ -250,9 +252,9 @@ contract Distributor {
             nextDistributionTimestamp >= block.timestamp,
             "Need to update current epoch"
         );
-
-        epochAllocation[_address][epochHeight][
-            nounce[_address][epochHeight]
+        uint eh = epochHeight;
+        epochAllocation[_address][eh][
+            nounce[_address][eh]
         ] = Allocation(amount, _lockTimestamp, _unlockTimestamp);
         uint sharesForLock = (amount *
             ((
@@ -265,13 +267,13 @@ contract Distributor {
                         ? lastDistributionTimestamp
                         : _lockTimestamp
                 ))) / 10 ** 5;
-        shares[_address][epochHeight].epochShares += sharesForLock;
-        epochTotalAllowance[epochHeight].epochShares += sharesForLock;
-        nounce[_address][epochHeight]++;
+        shares[_address][eh].epochShares += sharesForLock;
+        epochTotalAllowance[eh].epochShares += sharesForLock;
+        nounce[_address][eh]++;
 
-        if (!isActive[epochHeight][_address]) {
-            isActive[epochHeight][_address] = true;
-            epochActiveAddress[epochHeight].push(_address);
+        if (!isActive[eh][_address]) {
+            isActive[eh][_address] = true;
+            epochActiveAddress[eh].push(_address);
         }
 
         emit SharesDataWritten(
@@ -288,17 +290,18 @@ contract Distributor {
      */
     function claimDividends(uint amount) external {
         require(amount <= totalUnclaimed, "Not enough tokens to claim");
+        address sender = msg.sender;
         require(
-            amount <= totalAllocation[msg.sender],
+            amount <= totalAllocation[sender],
             "Amount exceeds address allocation"
         );
 
-        totalAllocation[msg.sender] -= amount;
+        totalAllocation[sender] -= amount;
         totalUnclaimed -= amount;
 
-        feeGeneratingToken.transfer(msg.sender, amount);
+        feeGeneratingToken.transfer(sender, amount);
 
-        emit DividendsClaimed(msg.sender, amount);
+        emit DividendsClaimed(sender, amount);
     }
 
     /**
