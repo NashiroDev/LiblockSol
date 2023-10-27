@@ -14,8 +14,8 @@ contract rLiblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
     address internal admin;
     uint256 public immutable maxSupply;
 
-    event TokensMinted(address indexed to, uint256 amount);
-    event TokensBurned(address indexed from, uint256 amount);
+    event TokensMinted(address indexed to, uint256 indexed amount);
+    event TokensBurned(address indexed from, uint256 indexed amount);
 
     /**
      * @dev Initializes the rLiblock token contract.

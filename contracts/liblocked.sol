@@ -19,8 +19,8 @@ contract Liblocked {
     uint private totalDepositedToken; // Total amount of tokens stacked at the moment
     uint private totalIssuedToken; // Total amount of tokens rewarded at the moment
 
-    event TokensLocked(address indexed user, uint amount, uint unlockAt);
-    event TokensWithdrawn(address indexed user, uint amount);
+    event TokensLocked(address indexed user, uint indexed amount, uint indexed unlockAt);
+    event TokensWithdrawn(address indexed user, uint indexed amount);
 
     mapping(address => mapping(uint => Ledger)) public ledger; // Mapping to store the user's token staking information
     mapping(address => uint) private nounce; // Mapping to store the user's nounce (to keep track of their token staking records)

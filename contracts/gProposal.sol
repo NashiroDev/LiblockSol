@@ -6,10 +6,10 @@ import "./LIB.sol";
 import "./rLIB.sol";
 
 contract gProposal {
-    event NewProposal(uint indexed proposalId, string title, address creator);
-    event ProposalExecuted(uint indexed proposalId, bool accepted);
-    event Vote(uint indexed proposalId, address voter);
-    event BalancingExecuted(uint balancingId, uint floor);
+    event NewProposal(uint indexed proposalId, string indexed title, address indexed creator);
+    event ProposalExecuted(uint indexed proposalId, bool indexed accepted);
+    event Vote(uint indexed proposalId, address indexed voter);
+    event BalancingExecuted(uint indexed balancingId, uint indexed floor);
 
     Liblock public immutable libToken;
     rLiblock public immutable rlibToken;

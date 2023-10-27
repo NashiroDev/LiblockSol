@@ -8,14 +8,13 @@ import "./LIB.sol";
  * @dev A contract for distributing tokens to multiple addresses based on their shares during an epoch
  */
 contract Distributor {
-    event DividendsClaimed(address indexed account, uint amount);
+    event DividendsClaimed(address indexed account, uint indexed amount);
     event SharesDataWritten(
         address indexed account,
-        uint shares,
-        uint lockTimestamp,
-        uint unlockTimestamp
+        uint indexed shares,
+        uint indexed unlockTimestamp
     );
-    event EpochUpdated(uint epochHeight, uint newTotalUnclaimed);
+    event EpochUpdated(uint indexed epochHeight, uint indexed newTotalUnclaimed);
 
     Liblock private immutable feeGeneratingToken;
 
@@ -281,7 +280,6 @@ contract Distributor {
         emit SharesDataWritten(
             _address,
             sharesForLock,
-            _lockTimestamp,
             _unlockTimestamp
         );
     }
