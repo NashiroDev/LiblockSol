@@ -257,7 +257,7 @@ contract gProposal {
      */
     function vote(
         uint _proposalId,
-        string memory _vote
+        bytes32 _vote
     ) external onlyDelegatee {
         address sender = msg.sender;
         require(
