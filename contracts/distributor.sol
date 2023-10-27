@@ -8,14 +8,13 @@ import "./LIB.sol";
  * @dev A contract for distributing tokens to multiple addresses based on their shares during an epoch
  */
 contract Distributor {
-    event DividendsClaimed(address indexed account, uint amount);
+    event DividendsClaimed(address indexed account, uint indexed amount);
     event SharesDataWritten(
         address indexed account,
-        uint shares,
-        uint lockTimestamp,
-        uint unlockTimestamp
+        uint indexed shares,
+        uint indexed unlockTimestamp
     );
-    event EpochUpdated(uint epochHeight, uint newTotalUnclaimed);
+    event EpochUpdated(uint indexed epochHeight, uint indexed newTotalUnclaimed);
 
     Liblock private immutable feeGeneratingToken;
 
@@ -31,7 +30,8 @@ contract Distributor {
     mapping(address => mapping(uint => uint[])) private inheritanceProgress;
 
     // track address locks
-    mapping(address => mapping(uint => mapping(uint => Allocation))) private epochAllocation;
+    mapping(address => mapping(uint => mapping(uint => Allocation)))
+        private epochAllocation;
     mapping(address => mapping(uint => uint)) private nounce;
 
     // track epoch total shares and token to claimable at the end of the epoch
@@ -101,19 +101,20 @@ contract Distributor {
             nextDistributionTimestamp <= block.timestamp,
             "Not time for new epoch"
         );
-        if (epochHeight != 0) {
+        uint eh = epochHeight;
+        if (eh != 0) {
             require(
-            dividendsProgress[epochHeight - 1][0] >=
-                dividendsProgress[epochHeight - 1][1],
-            "All dividends from previous epoch are not yet proccessed"
-        );
+                dividendsProgress[eh - 1][0] >=
+                    dividendsProgress[eh - 1][1],
+                "All dividends from previous epoch are not yet proccessed"
+            );
         }
         uint epochEndBalance = feeGeneratingToken.balanceOf(address(this));
 
-        epochTotalAllowance[epochHeight].epochClaimableToken =
+        epochTotalAllowance[eh].epochClaimableToken =
             epochEndBalance -
             totalUnclaimed;
-        totalUnclaimed += epochTotalAllowance[epochHeight].epochClaimableToken;
+        totalUnclaimed += epochTotalAllowance[eh].epochClaimableToken;
 
         lastDistributionTimestamp = nextDistributionTimestamp;
         nextDistributionTimestamp = lastDistributionTimestamp + 30 days;
@@ -122,8 +123,8 @@ contract Distributor {
         if (epochHeight != 0) {
             generateDividendsData();
         }
-        
-        emit EpochUpdated(epochHeight, totalUnclaimed);
+
+        emit EpochUpdated(eh + 1, totalUnclaimed);
     }
 
     function generateDividendsData() private {
@@ -152,23 +153,14 @@ contract Distributor {
             "All dividends are already proccessed"
         );
 
-        uint tokenPerShare = (epochTotalAllowance[workingEpoch]
-            .epochClaimableToken * 10 ** 18) /
-            epochTotalAllowance[workingEpoch].epochShares;
-        uint8 looper = dividendsProgress[workingEpoch][1] -
-            dividendsProgress[workingEpoch][0] >=
-            100
-            ? 100
-            : uint8(
-                dividendsProgress[workingEpoch][1] -
-                    dividendsProgress[workingEpoch][0]
-            );
+        Shares memory ETA = epochTotalAllowance[workingEpoch];
+        uint[] memory DP = dividendsProgress[workingEpoch];
 
-        for (
-            uint i = dividendsProgress[workingEpoch][0];
-            i < dividendsProgress[workingEpoch][0] + looper;
-            i++
-        ) {
+        uint tokenPerShare = (ETA.epochClaimableToken * 10 ** 18) /
+            ETA.epochShares;
+        uint8 looper = DP[1] - DP[0] >= 100 ? 100 : uint8(DP[1] - DP[0]);
+
+        for (uint i = DP[0]; i < DP[0] + looper; ) {
             address _address = epochActiveAddress[workingEpoch][i];
             shares[_address][workingEpoch].epochClaimableToken =
                 (tokenPerShare * shares[_address][workingEpoch].epochShares) /
@@ -176,8 +168,9 @@ contract Distributor {
             totalAllocation[_address] += shares[_address][workingEpoch]
                 .epochClaimableToken;
             generateInheritanceProgress(_address);
+            unchecked{i++;}
         }
-        dividendsProgress[workingEpoch][0] += looper;
+        unchecked {dividendsProgress[workingEpoch][0] += looper;}
     }
 
     /**
@@ -187,6 +180,7 @@ contract Distributor {
     function currentEpochInheritance(address _address) external {
         require(epochHeight > 0, "There's nothing to inherit from epoch -1");
         uint workingEpoch = epochHeight - 1;
+        uint eh = epochHeight;
         require(
             inheritanceProgress[_address][workingEpoch].length == 2,
             "Address dividends need to be updated first"
@@ -201,34 +195,19 @@ contract Distributor {
             "All inheritances are already proccessed"
         );
 
-        uint8 looper = inheritanceProgress[_address][workingEpoch][0] -
-            inheritanceProgress[_address][workingEpoch][0] >=
-            10
-            ? 10
-            : uint8(
-                inheritanceProgress[_address][workingEpoch][0] -
-                    inheritanceProgress[_address][workingEpoch][0]
-            );
+        uint[] memory IP = inheritanceProgress[_address][workingEpoch];
 
-        for (
-            uint x = inheritanceProgress[_address][workingEpoch][0];
-            x < inheritanceProgress[_address][workingEpoch][0] + looper;
-            x++
-        ) {
-            if (
-                epochAllocation[_address][workingEpoch][x].unlockTimestamp >
-                nextDistributionTimestamp
-            ) {
-                uint _amount = epochAllocation[_address][workingEpoch][x]
-                    .amount;
-                uint _unlockTimestamp = epochAllocation[_address][workingEpoch][
-                    x
-                ].unlockTimestamp;
-                uint _lockTimestamp = epochAllocation[_address][workingEpoch][x]
-                    .lockTimestamp;
+        uint8 looper = IP[1] - IP[0] >= 10 ? 10 : uint8(IP[1] - IP[0]);
 
-                epochAllocation[_address][epochHeight][
-                    nounce[_address][epochHeight]
+        for (uint x = IP[0]; x < IP[0] + looper; ) {
+            Allocation memory EA = epochAllocation[_address][workingEpoch][x];
+            if (EA.unlockTimestamp > nextDistributionTimestamp) {
+                uint _amount = EA.amount;
+                uint _unlockTimestamp = EA.unlockTimestamp;
+                uint _lockTimestamp = EA.lockTimestamp;
+
+                epochAllocation[_address][eh][
+                    nounce[_address][eh]
                 ] = Allocation(_amount, _lockTimestamp, _unlockTimestamp);
 
                 uint sharesForLock = (_amount *
@@ -242,18 +221,19 @@ contract Distributor {
                                 ? lastDistributionTimestamp
                                 : _lockTimestamp
                         ))) / 10 ** 5;
-                shares[_address][epochHeight].epochShares += sharesForLock;
-                epochTotalAllowance[epochHeight].epochShares += sharesForLock;
+                shares[_address][eh].epochShares += sharesForLock;
+                epochTotalAllowance[eh].epochShares += sharesForLock;
 
-                nounce[_address][epochHeight]++;
+                nounce[_address][eh]++;
 
-                if (!isActive[epochHeight][_address]) {
-                    isActive[epochHeight][_address] = true;
-                    epochActiveAddress[epochHeight].push(_address);
+                if (!isActive[eh][_address]) {
+                    isActive[eh][_address] = true;
+                    epochActiveAddress[eh].push(_address);
                 }
             }
+            unchecked{x++;}
         }
-        inheritanceProgress[_address][workingEpoch][0] += looper;
+        unchecked {inheritanceProgress[_address][workingEpoch][0] += looper;}
     }
 
     /**
@@ -273,9 +253,9 @@ contract Distributor {
             nextDistributionTimestamp >= block.timestamp,
             "Need to update current epoch"
         );
-
-        epochAllocation[_address][epochHeight][
-            nounce[_address][epochHeight]
+        uint eh = epochHeight;
+        epochAllocation[_address][eh][
+            nounce[_address][eh]
         ] = Allocation(amount, _lockTimestamp, _unlockTimestamp);
         uint sharesForLock = (amount *
             ((
@@ -288,19 +268,18 @@ contract Distributor {
                         ? lastDistributionTimestamp
                         : _lockTimestamp
                 ))) / 10 ** 5;
-        shares[_address][epochHeight].epochShares += sharesForLock;
-        epochTotalAllowance[epochHeight].epochShares += sharesForLock;
-        nounce[_address][epochHeight]++;
+        shares[_address][eh].epochShares += sharesForLock;
+        epochTotalAllowance[eh].epochShares += sharesForLock;
+        nounce[_address][eh]++;
 
-        if (!isActive[epochHeight][_address]) {
-            isActive[epochHeight][_address] = true;
-            epochActiveAddress[epochHeight].push(_address);
+        if (!isActive[eh][_address]) {
+            isActive[eh][_address] = true;
+            epochActiveAddress[eh].push(_address);
         }
 
         emit SharesDataWritten(
             _address,
             sharesForLock,
-            _lockTimestamp,
             _unlockTimestamp
         );
     }
@@ -311,17 +290,20 @@ contract Distributor {
      */
     function claimDividends(uint amount) external {
         require(amount <= totalUnclaimed, "Not enough tokens to claim");
+        address sender = msg.sender;
         require(
-            amount <= totalAllocation[msg.sender],
+            amount <= totalAllocation[sender],
             "Amount exceeds address allocation"
         );
 
-        totalAllocation[msg.sender] -= amount;
-        totalUnclaimed -= amount;
+        unchecked {
+            totalAllocation[sender] -= amount;
+            totalUnclaimed -= amount;
+        }
 
-        feeGeneratingToken.transfer(msg.sender, amount);
+        feeGeneratingToken.transfer(sender, amount);
 
-        emit DividendsClaimed(msg.sender, amount);
+        emit DividendsClaimed(sender, amount);
     }
 
     /**
@@ -379,10 +361,11 @@ contract Distributor {
         returns (uint amount, uint lockTimestamp, uint unlockTimestamp)
     {
         require(_epoch <= epochHeight, "Epoch hasn't appened yet");
+        Allocation memory EA = epochAllocation[_address][_epoch][_nounce];
         return (
-            epochAllocation[_address][_epoch][_nounce].amount,
-            epochAllocation[_address][_epoch][_nounce].lockTimestamp,
-            epochAllocation[_address][_epoch][_nounce].unlockTimestamp
+            EA.amount,
+            EA.lockTimestamp,
+            EA.unlockTimestamp
         );
     }
 
@@ -396,9 +379,10 @@ contract Distributor {
         uint _epoch
     ) external view returns (uint epochTotalShares, uint epochTotalTokens) {
         require(_epoch <= epochHeight, "Epoch hasn't appened yet");
+        Shares memory ETA = epochTotalAllowance[_epoch];
         return (
-            epochTotalAllowance[_epoch].epochShares,
-            epochTotalAllowance[_epoch].epochClaimableToken
+            ETA.epochShares,
+            ETA.epochClaimableToken
         );
     }
 
@@ -414,9 +398,10 @@ contract Distributor {
         uint _epoch
     ) external view returns (uint epochShares, uint epochTokens) {
         require(_epoch <= epochHeight, "Epoch hasn't appened yet");
+        Shares memory share = shares[_address][_epoch];
         return (
-            shares[_address][_epoch].epochShares,
-            shares[_address][_epoch].epochClaimableToken
+            share.epochShares,
+            share.epochClaimableToken
         );
     }
 
@@ -455,7 +440,8 @@ contract Distributor {
         uint _epoch
     ) external view returns (uint processed, uint totalToProcess) {
         require(_epoch < epochHeight, "Epoch hasn't appened yet");
-        return (dividendsProgress[_epoch][0], dividendsProgress[_epoch][1]);
+        uint[] memory DP = dividendsProgress[_epoch];
+        return (DP[0], DP[1]);
     }
 
     /**
@@ -470,9 +456,10 @@ contract Distributor {
         uint _epoch
     ) external view returns (uint processed, uint totalToProcess) {
         require(_epoch < epochHeight, "Epoch hasn't appened yet");
+        uint[] memory IP = inheritanceProgress[_address][_epoch];
         return (
-            inheritanceProgress[_address][_epoch][0],
-            inheritanceProgress[_address][_epoch][1]
+            IP[0],
+            IP[1]
         );
     }
 }

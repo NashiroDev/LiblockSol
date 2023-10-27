@@ -160,11 +160,11 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
      */
     function setFeeRecipientsAndShares(
         address _devWallet,
-        uint16 _devWalletShares,
         address _distributionContract,
-        uint16 _distributionContractShares,
-        uint16 _liblockFondationWalletShares,
-        uint16 _zeroAdressShares
+        uint8 _devWalletShares,
+        uint8 _distributionContractShares,
+        uint8 _liblockFondationWalletShares,
+        uint8 _zeroAdressShares
     ) external onlyAdmin {
         require(
             _devWalletShares +

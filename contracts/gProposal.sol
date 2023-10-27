@@ -6,25 +6,24 @@ import "./LIB.sol";
 import "./rLIB.sol";
 
 contract gProposal {
+    event NewProposal(uint indexed proposalId, string title, address indexed creator);
+    event ProposalExecuted(uint indexed proposalId, bool indexed accepted);
+    event Vote(uint indexed proposalId, address indexed voter);
+    event BalancingExecuted(uint indexed balancingId, uint indexed floor);
 
-    event NewProposal(uint indexed proposalId, string title, address creator);
-    event ProposalExecuted(uint indexed proposalId, bool accepted);
-    event Vote(uint indexed proposalId, address voter);
-    event BalancingExecuted(uint balancingId, uint floor);
-
-    Liblock public libToken;
-    rLiblock public rlibToken;
+    Liblock public immutable libToken;
+    rLiblock public immutable rlibToken;
 
     uint public proposalCount;
-    uint256 public balancingCount;
-    uint256 public maxPower;
+    uint public balancingCount;
+    uint public maxPower;
 
-    uint8 private libThreshold;
-    uint8 private rlibThreshold;
+    uint16 private libThreshold;
+    uint16 private rlibThreshold;
     address private admin;
 
     AggregatorV3Interface private dataFeed;
-    
+
     // Track balancing of min VP to submit a proposals
     mapping(uint256 => Balancing) public balancing;
 
@@ -105,48 +104,53 @@ contract gProposal {
     }
 
     /**
-    * @dev Sets the contract admin
-    * @param account The address of the admin
-    */
+     * @dev Sets the contract admin
+     * @param account The address of the admin
+     */
     function setAdmin(address account) private {
         require(account != address(0), "Invalid address");
         admin = account;
     }
 
     /**
-    * @dev Checks if the given address is the admin
-    * @param account The address to check
-    * @return A boolean indicating if the address is the admin
-    */
+     * @dev Checks if the given address is the admin
+     * @param account The address to check
+     * @return A boolean indicating if the address is the admin
+     */
     function isAdmin(address account) private view returns (bool) {
         return admin == account;
     }
 
     /**
-    * @dev Updates the balance floor price neccessary to submit a proposal
-    * This function can only be called by the admin
-    * This function can only be called each 7days
-    */
+     * @dev Updates the balance floor price neccessary to submit a proposal
+     * This function can only be called by the admin
+     * This function can only be called each 7days
+     */
     function balanceFloor() external {
-        require(balancing[balancingCount].nextTimestamp < block.timestamp, "Not time yet");
+        require(
+            balancing[balancingCount].nextTimestamp < block.timestamp,
+            "Not time yet"
+        );
         balancingCount++;
+        uint bc = balancingCount;
 
         (
-            /* uint80 roundID */,
-            int answer,
-            /* uint startedAt */ ,
-            uint timeStamp,
-            /* uint80 answeredInRound */
-        ) = dataFeed.latestRoundData();
+            ,
+            /* uint80 roundID */ int answer,
+            ,
+            /* uint startedAt */ uint timeStamp,
 
-        uint nextPriceTaget = balancing[balancingCount - 1].epochPriceTarget +
-            balancing[balancingCount - 1].epochPriceTarget /
+        ) = /* uint80 answeredInRound */
+            dataFeed.latestRoundData();
+
+        uint nextPriceTaget = balancing[bc - 1].epochPriceTarget +
+            balancing[bc - 1].epochPriceTarget /
             2000;
 
         uint epochFloor = ((nextPriceTaget * 10 ** 18) / uint(answer));
 
-        balancing[balancingCount] = Balancing(
-            balancingCount,
+        balancing[bc] = Balancing(
+            bc,
             block.number,
             answer,
             timeStamp,
@@ -155,14 +159,14 @@ contract gProposal {
             nextPriceTaget
         );
 
-        emit BalancingExecuted(balancingCount, epochFloor);
+        emit BalancingExecuted(bc, epochFloor);
     }
 
     /**
-    * @dev Creates a new proposal
-    * @param _title The title of the proposal
-    * @param _description The description of the proposal
-    */
+     * @dev Creates a new proposal
+     * @param _title The title of the proposal
+     * @param _description The description of the proposal
+     */
     function createProposal(
         string calldata _title,
         string calldata _description
@@ -172,13 +176,16 @@ contract gProposal {
             "Invalid proposal details"
         );
 
-        deduceVirtualPower(msg.sender);
+        address sender = msg.sender;
+        uint pc = proposalCount;
 
-        proposals[proposalCount] = Proposal(
-            proposalCount,
+        deduceVirtualPower(sender);
+
+        proposals[pc] = Proposal(
+            pc,
             _title,
             _description,
-            msg.sender,
+            sender,
             false,
             false,
             0,
@@ -189,24 +196,24 @@ contract gProposal {
         );
         proposalCount++;
 
-        emit NewProposal(proposalCount - 1, _title, msg.sender);
+        emit NewProposal(pc - 1, _title, sender);
     }
 
     /**
-    * @dev Retrieves the details of a proposal
-    * @param _proposalId The ID of the proposal
-    * @return id The ID of the proposal
-    * @return title The title of the proposal
-    * @return description The description of the proposal
-    * @return creator The address of the creator of the proposal
-    * @return executed A boolean indicating if the proposal has been executed
-    * @return accepted A boolean indicating if the proposal has been accepted
-    * @return yesVotes The number of "yes" votes received
-    * @return noVotes The number of "no" votes received
-    * @return abstainVotes The number of "abstain" votes received
-    * @return uniqueVotes The number of unique voters
-    * @return votingEndTime The end time of the voting period
-    */
+     * @dev Retrieves the details of a proposal
+     * @param _proposalId The ID of the proposal
+     * @return id The ID of the proposal
+     * @return title The title of the proposal
+     * @return description The description of the proposal
+     * @return creator The address of the creator of the proposal
+     * @return executed A boolean indicating if the proposal has been executed
+     * @return accepted A boolean indicating if the proposal has been accepted
+     * @return yesVotes The number of "yes" votes received
+     * @return noVotes The number of "no" votes received
+     * @return abstainVotes The number of "abstain" votes received
+     * @return uniqueVotes The number of unique voters
+     * @return votingEndTime The end time of the voting period
+     */
     function getProposal(
         uint _proposalId
     )
@@ -227,7 +234,7 @@ contract gProposal {
         )
     {
         require(_proposalId < proposalCount, "No proposal exist for this id");
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal memory proposal = proposals[_proposalId];
         return (
             proposal.id,
             proposal.title,
@@ -244,16 +251,17 @@ contract gProposal {
     }
 
     /**
-    * @dev Allows a token holder to vote on a proposal
-    * @param _proposalId The ID of the proposal
-    * @param _vote The vote ("yes", "no", or "abstain")
-    */
+     * @dev Allows a token holder to vote on a proposal
+     * @param _proposalId The ID of the proposal
+     * @param _vote The vote ("yes", "no", or "abstain")
+     */
     function vote(
         uint _proposalId,
-        string memory _vote
+        bytes32 _vote
     ) external onlyDelegatee {
+        address sender = msg.sender;
         require(
-            !voted[msg.sender][_proposalId],
+            !voted[sender][_proposalId],
             "Already voted for this proposal"
         );
 
@@ -265,9 +273,10 @@ contract gProposal {
 
         require(!proposal.executed, "Proposal already executed");
 
-        uint votePower = libToken.getVotes(msg.sender) + rlibToken.getVotes(msg.sender);
+        uint votePower = libToken.getVotes(sender) +
+            rlibToken.getVotes(sender);
 
-        voted[msg.sender][_proposalId] = true;
+        voted[sender][_proposalId] = true;
         proposal.uniqueVotes++;
 
         if (votePower > maxPower) {
@@ -308,20 +317,20 @@ contract gProposal {
             }
         }
 
-        emit Vote(_proposalId, msg.sender);
+        emit Vote(_proposalId, sender);
     }
 
     /**
-    * @dev Calculates the progression of a proposal
-    * @param _proposalId The ID of the proposal
-    * @return progression The progression percentage
-    * @return totalVotes The total number of votes
-    */
+     * @dev Calculates the progression of a proposal
+     * @param _proposalId The ID of the proposal
+     * @return progression The progression percentage
+     * @return totalVotes The total number of votes
+     */
     function calculateProgression(
         uint _proposalId
     ) external view returns (uint, uint) {
         require(_proposalId < proposalCount, "No proposal exist for this id");
-        Proposal storage proposal = proposals[_proposalId];
+        Proposal memory proposal = proposals[_proposalId];
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
@@ -335,16 +344,23 @@ contract gProposal {
     }
 
     /**
-    * @dev Checks the outcome of a proposal
-    * @param _proposalId The ID of the proposal
-    */
+     * @dev Checks the outcome of a proposal
+     * @param _proposalId The ID of the proposal
+     */
     function checkProposalOutcome(uint _proposalId) private {
         Proposal storage proposal = proposals[_proposalId];
+        require(block.timestamp >= proposal.votingEndTime, "The proposal is still being voted");
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
 
-        if (totalVotes >= (libThreshold * libToken.totalSupply()) / 100 + (rlibThreshold * rlibToken.totalSupply()) / 100) {
+        if (
+            totalVotes >=
+            (libThreshold * libToken.totalSupply()) /
+                100 +
+                (rlibThreshold * rlibToken.totalSupply()) /
+                100
+        ) {
             if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
                 proposal.executed = true;
                 proposal.accepted = true;
@@ -361,31 +377,48 @@ contract gProposal {
     }
 
     /**
-    * @dev Returns the block number for the next alteration
-    * @return The block number
+    * @dev Checks the outcome of a proposal
+    * @param _proposalId The ID of the proposal
     */
+    function executeProposal(uint _proposalId) external {
+        checkProposalOutcome(_proposalId);
+    }
+
+    /**
+     * @dev Returns the block number for the next alteration
+     * @return The block number
+     */
     function nextAlterationBlock() external view returns (uint) {
+        Balancing memory alter = balancing[balancingCount];
         return
-            balancing[balancingCount].blockHeight +
-            ((balancing[balancingCount].nextTimestamp -
-                balancing[balancingCount].currentTimestamp) / 3); //Sepo scroll
+            alter.blockHeight +
+            ((alter.nextTimestamp - alter.currentTimestamp) / 3); //Sepo scroll
     }
 
     /**
-    * @dev Deduce VP needed for creating a new proposal
-    * @param _address The address to deduce the VP
-    */
+     * @dev Deduce VP needed for creating a new proposal
+     * @param _address The address to deduce the VP
+     */
     function deduceVirtualPower(address _address) private {
-        require(rlibToken.getVotes(_address) - virtualPowerUsed[_address][balancingCount] >= balancing[balancingCount].epochFloor, "Not enough rLIB VP left");
-        virtualPowerUsed[_address][balancingCount] += balancing[balancingCount].epochFloor;
+        Balancing memory alter = balancing[balancingCount];
+        require(
+            rlibToken.getVotes(_address) -
+                virtualPowerUsed[_address][balancingCount] >=
+                alter.epochFloor,
+            "Not enough rLIB VP left"
+        );
+        virtualPowerUsed[_address][balancingCount] += alter.epochFloor;
     }
 
     /**
-    * @dev Allow admin to alter thresholds
-    * @param _libThreshold Threshold for the LIB token.
-    * @param _rlibThreshold Threshold for the rLIB token.
-    */
-    function setNewThresholds(uint8 _libThreshold, uint8 _rlibThreshold) external onlyAdmin {
+     * @dev Allow admin to alter thresholds
+     * @param _libThreshold Threshold for the LIB token.
+     * @param _rlibThreshold Threshold for the rLIB token.
+     */
+    function setNewThresholds(
+        uint8 _libThreshold,
+        uint8 _rlibThreshold
+    ) external onlyAdmin {
         require(_libThreshold > 0 && _rlibThreshold > 0, "Invalid");
         libThreshold = _libThreshold;
         rlibThreshold = _rlibThreshold;
