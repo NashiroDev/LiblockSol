@@ -6,7 +6,7 @@ import "./LIB.sol";
 import "./rLIB.sol";
 
 contract gProposal {
-    event NewProposal(uint indexed proposalId, string indexed title, address indexed creator);
+    event NewProposal(uint indexed proposalId, string title, address indexed creator);
     event ProposalExecuted(uint indexed proposalId, bool indexed accepted);
     event Vote(uint indexed proposalId, address indexed voter);
     event BalancingExecuted(uint indexed balancingId, uint indexed floor);
