@@ -56,6 +56,12 @@ module.exports = {
       accounts: [process.env.PRIVATE_KEY],
       saveDeployments: true,
     },
+    scroll: {
+      chainId: 534352,
+      url: process.env.SCROLL_RPC_URL,
+      accounts: [process.env.PRIVATE_KEY],
+      saveDeployments: true,
+    },
     scrollSepolia: {
       chainId: 534351,
       url: process.env.SCROLL_SEPOLIA_RPC_URL,
@@ -66,6 +72,7 @@ module.exports = {
   etherscan: {
     apiKey: {
       scrollSepolia: 'dummy',
+      scroll: 'dummy',
       goerli: process.env.ETHERSCAN_API_KEY,
     },
     customChains: [
@@ -75,6 +82,14 @@ module.exports = {
         urls: {
           apiURL: 'https://sepolia-blockscout.scroll.io/api',
           browserURL: 'https://sepolia-blockscout.scroll.io/',
+        },
+      },
+      {
+        network: "scroll",
+        chainId: 534352,
+        urls: {
+          apiURL: "https://blockscout.scroll.io/api",
+          browserURL: 'https://blockscout.scroll.io/',
         },
       }
     ]
