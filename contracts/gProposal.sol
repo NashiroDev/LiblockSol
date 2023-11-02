@@ -388,11 +388,9 @@ contract gProposal {
      * @dev Returns the block number for the next alteration
      * @return The block number
      */
-    function nextAlterationBlock() external view returns (uint) {
+    function nextAlterationTimeLeft() external view returns (uint) {
         Balancing memory alter = balancing[balancingCount];
-        return
-            alter.blockHeight +
-            ((alter.nextTimestamp - alter.currentTimestamp) / 3); //Sepo scroll
+        return alter.nextTimestamp - block.timestamp; //Sepo scroll
     }
 
     /**
