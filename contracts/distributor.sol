@@ -168,9 +168,9 @@ contract Distributor {
             totalAllocation[_address] += shares[_address][workingEpoch]
                 .epochClaimableToken;
             generateInheritanceProgress(_address);
-            unchecked{i++;}
+            i++;
         }
-        unchecked {dividendsProgress[workingEpoch][0] += looper;}
+        dividendsProgress[workingEpoch][0] += looper;
     }
 
     /**
@@ -231,9 +231,9 @@ contract Distributor {
                     epochActiveAddress[eh].push(_address);
                 }
             }
-            unchecked{x++;}
+            x++;
         }
-        unchecked {inheritanceProgress[_address][workingEpoch][0] += looper;}
+        inheritanceProgress[_address][workingEpoch][0] += looper;
     }
 
     /**
