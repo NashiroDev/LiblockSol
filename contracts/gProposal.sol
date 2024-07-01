@@ -117,7 +117,7 @@ contract gProposal {
      * @param account The address to check
      * @return A boolean indicating if the address is the admin
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
 
@@ -385,12 +385,12 @@ contract gProposal {
     }
 
     /**
-     * @dev Returns the block number for the next alteration
-     * @return The block number
+     * @dev Returns the minimum time left for the next alteration
+     * @return The time left in seconds
      */
     function nextAlterationTimeLeft() external view returns (uint) {
         Balancing memory alter = balancing[balancingCount];
-        return alter.nextTimestamp - block.timestamp; //Sepo scroll
+        return block.timestamp >= alter.nextTimestamp ? 0 : alter.nextTimestamp - block.timestamp;
     }
 
     /**

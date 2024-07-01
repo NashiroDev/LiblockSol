@@ -87,7 +87,7 @@ contract Distributor {
      * @param account The address to check.
      * @return A boolean indicating if the address is the admin.
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
 

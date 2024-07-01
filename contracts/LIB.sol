@@ -66,10 +66,10 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
      * @param account The address to check.
      * @return A boolean indicating whether the address is the admin or not.
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
-    function isModerator(address account) private view returns (bool) {
+    function isModerator(address account) public view returns (bool) {
         return moderator == account;
     }
 
@@ -165,7 +165,7 @@ contract Liblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
         uint8 _distributionContractShares,
         uint8 _liblockFondationWalletShares,
         uint8 _zeroAdressShares
-    ) external onlyAdmin {
+    ) external onlyModerator {
         require(
             _devWalletShares +
                 _distributionContractShares +
