@@ -71,7 +71,7 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
-      scrollSepolia: 'dummy',
+      scrollSepolia: process.env.SCROLLSCAN_API_KEY,
       scroll: 'dummy',
       goerli: process.env.ETHERSCAN_API_KEY,
     },
@@ -80,8 +80,8 @@ module.exports = {
         network: "scrollSepolia",
         chainId: 534351,
         urls: {
-          apiURL: 'https://sepolia-blockscout.scroll.io/api',
-          browserURL: 'https://sepolia-blockscout.scroll.io/',
+          apiURL: 'https://api-sepolia.scrollscan.com/api',
+          browserURL: 'https://sepolia.scrollscan.com/',
         },
       },
       {
