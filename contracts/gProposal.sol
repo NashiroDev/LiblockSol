@@ -67,6 +67,7 @@ contract gProposal {
         maxPower = libToken.totalSupply() / 1000;
         setAdmin(msg.sender);
         balancingCount = 0;
+        proposalCount = 0;
         balancing[balancingCount] = Balancing(
             balancingCount,
             block.number,
@@ -117,7 +118,7 @@ contract gProposal {
      * @param account The address to check
      * @return A boolean indicating if the address is the admin
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
 
@@ -385,14 +386,12 @@ contract gProposal {
     }
 
     /**
-     * @dev Returns the block number for the next alteration
-     * @return The block number
+     * @dev Returns the minimum time left for the next alteration
+     * @return The time left in seconds
      */
-    function nextAlterationBlock() external view returns (uint) {
+    function nextAlterationTimeLeft() external view returns (uint) {
         Balancing memory alter = balancing[balancingCount];
-        return
-            alter.blockHeight +
-            ((alter.nextTimestamp - alter.currentTimestamp) / 3); //Sepo scroll
+        return block.timestamp >= alter.nextTimestamp ? 0 : alter.nextTimestamp - block.timestamp;
     }
 
     /**

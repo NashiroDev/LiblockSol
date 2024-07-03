@@ -87,7 +87,7 @@ contract Distributor {
      * @param account The address to check.
      * @return A boolean indicating if the address is the admin.
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
 
@@ -168,9 +168,9 @@ contract Distributor {
             totalAllocation[_address] += shares[_address][workingEpoch]
                 .epochClaimableToken;
             generateInheritanceProgress(_address);
-            unchecked{i++;}
+            i++;
         }
-        unchecked {dividendsProgress[workingEpoch][0] += looper;}
+        dividendsProgress[workingEpoch][0] += looper;
     }
 
     /**
@@ -231,9 +231,9 @@ contract Distributor {
                     epochActiveAddress[eh].push(_address);
                 }
             }
-            unchecked{x++;}
+            x++;
         }
-        unchecked {inheritanceProgress[_address][workingEpoch][0] += looper;}
+        inheritanceProgress[_address][workingEpoch][0] += looper;
     }
 
     /**

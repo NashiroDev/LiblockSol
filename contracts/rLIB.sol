@@ -48,7 +48,7 @@ contract rLiblock is ERC20, ERC20Burnable, ERC20Permit, ERC20Votes {
      * @param account The address to check.
      * @return Whether the address is the admin or not.
      */
-    function isAdmin(address account) private view returns (bool) {
+    function isAdmin(address account) public view returns (bool) {
         return admin == account;
     }
 
