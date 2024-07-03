@@ -67,6 +67,7 @@ contract gProposal {
         maxPower = libToken.totalSupply() / 1000;
         setAdmin(msg.sender);
         balancingCount = 0;
+        proposalCount = 0;
         balancing[balancingCount] = Balancing(
             balancingCount,
             block.number,
