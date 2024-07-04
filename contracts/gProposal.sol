@@ -267,7 +267,8 @@ contract gProposal {
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
-
+            
+        proposal.executed = true;
         if (
             totalVotes >=
             (libThreshold * libToken.totalSupply()) /
@@ -276,14 +277,11 @@ contract gProposal {
                 100
         ) {
             if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
-                proposal.executed = true;
                 proposal.accepted = true;
             } else {
-                proposal.executed = true;
                 proposal.accepted = false;
             }
         } else {
-            proposal.executed = true;
             proposal.accepted = false;
         }
 
