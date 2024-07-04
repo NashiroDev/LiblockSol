@@ -183,7 +183,7 @@ contract gProposal {
             0,
             0,
             0,
-            block.timestamp + 7 days,
+            block.timestamp + 1 days, // replace to 7 days later
             block.number // Set snapshot block
         );
 

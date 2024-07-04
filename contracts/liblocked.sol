@@ -56,6 +56,19 @@ contract Liblocked {
     * @dev Lock tokens for 17 days - ratio of 1:1
     * @param amount The amount of tokens to lock
     */
+    function lockTest(uint amount) external {
+        address sender = msg.sender;
+        require(
+            amount <= depositToken.balanceOf(sender),
+            "Not enough tokens"
+        );
+        lockTokens(amount, 100, 1 days, sender);
+    }
+
+    /**
+    * @dev Lock tokens for 17 days - ratio of 1:1
+    * @param amount The amount of tokens to lock
+    */
     function lock17(uint amount) external {
         address sender = msg.sender;
         require(
