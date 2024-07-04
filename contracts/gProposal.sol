@@ -60,6 +60,7 @@ contract gProposal {
         uint abstainVotes;
         uint uniqueVotes;
         uint votingEndTime;
+        uint256 snapshotBlock; // New field
     }
 
     constructor(address _libToken, address _rlibToken) {
@@ -153,12 +154,19 @@ contract gProposal {
      * @param _title The title of the proposal
      * @param _description The description of the proposal
      */
-    function createProposal(string calldata _title, string calldata _description) external {
-        require(bytes(_title).length > 0 && bytes(_description).length > 0, "Invalid proposal details");
-        
+    function createProposal(
+        string calldata _title,
+        string calldata _description
+    ) external {
+        require(
+            bytes(_title).length > 0 && bytes(_description).length > 0,
+            "Invalid proposal details"
+        );
+
         uint256 requiredVotes = balancing[balancingCount].epochFloor;
-        uint256 availableVotes = rlibToken.getVotes(msg.sender) - virtualPowerUsed[msg.sender][balancingCount];
-        
+        uint256 availableVotes = rlibToken.getVotes(msg.sender) -
+            virtualPowerUsed[msg.sender][balancingCount];
+
         require(availableVotes >= requiredVotes, "Insufficient VP");
 
         virtualPowerUsed[msg.sender][balancingCount] += requiredVotes;
@@ -174,7 +182,8 @@ contract gProposal {
             0,
             0,
             0,
-            block.timestamp + 7 days
+            block.timestamp + 7 days,
+            block.number // Set snapshot block
         );
 
         emit NewProposal(proposalCount - 1, _title, msg.sender);
@@ -183,32 +192,35 @@ contract gProposal {
     /**
      * @dev Allows a token holder to vote on a proposal
      * @param _proposalId The ID of the proposal
-     * @param _vote The vote ("yes", "no", or "abstain")
+     * @param _vote The vote (0 for "yes", 1 for "no", 2 for "abstain")
      */
-    function vote(uint _proposalId, bytes32 _vote) external onlyDelegatee {
+    function vote(uint _proposalId, uint8 _vote) external onlyDelegatee {
         require(!voted[msg.sender][_proposalId], "Already voted");
-
         Proposal storage proposal = proposals[_proposalId];
         require(!proposal.executed, "Proposal already executed");
-
         if (block.timestamp >= proposal.votingEndTime) {
             checkProposalOutcome(_proposalId);
             require(!proposal.executed, "Proposal already executed");
         }
-
-        uint votePower = libToken.getVotes(msg.sender) + rlibToken.getVotes(msg.sender);
+        uint votePower = libToken.getPastVotes(
+            msg.sender,
+            proposal.snapshotBlock
+        ) + rlibToken.getPastVotes(msg.sender, proposal.snapshotBlock);
         voted[msg.sender][_proposalId] = true;
         proposal.uniqueVotes++;
-
         if (votePower > maxPower) {
-            votePower = maxPower;
             proposal.abstainVotes += votePower - maxPower;
+            votePower = maxPower;
         }
-
-        if (_vote == "yes") proposal.yesVotes += votePower;
-        else if (_vote == "no") proposal.noVotes += votePower;
-        else if (_vote == "abstain") proposal.abstainVotes += votePower;
-
+        if (_vote == 0) {
+            proposal.yesVotes += votePower;
+        } else if (_vote == 1) {
+            proposal.noVotes += votePower;
+        } else if (_vote == 2) {
+            proposal.abstainVotes += votePower;
+        } else {
+            revert("Invalid vote option");
+        }
         emit Vote(_proposalId, msg.sender);
     }
 
