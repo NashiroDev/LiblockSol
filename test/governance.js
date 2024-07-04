@@ -8,8 +8,8 @@ async function main() {
     const gProposal = await ethers.getContractFactory("gProposal");
     const rLiblock = await ethers.getContractFactory("rLiblock");
 
-    const proposalAddress = "0x03c017f660C9B074F30481c4B4958992E6DaCDC1";
-    const rLiblockAddress = "0x90FEb26Aa8b8447f162b7c5b4aC7844273fF7ceB";
+    const proposalAddress = "0xe297F738B0c6B7ca9Ef60d506822Ae55aaF30286";
+    const rLiblockAddress = "0x081479b6528f438f466FFd93dAbA9cC317c97169";
 
     const proposalWithSigner = await gProposal.attach(proposalAddress).connect(ethers.provider.getSigner());
     const rLib = await rLiblock.attach(rLiblockAddress)
