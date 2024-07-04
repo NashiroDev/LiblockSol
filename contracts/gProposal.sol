@@ -181,57 +181,6 @@ contract gProposal {
     }
 
     /**
-     * @dev Retrieves the details of a proposal
-     * @param _proposalId The ID of the proposal
-     * @return id The ID of the proposal
-     * @return title The title of the proposal
-     * @return description The description of the proposal
-     * @return creator The address of the creator of the proposal
-     * @return executed A boolean indicating if the proposal has been executed
-     * @return accepted A boolean indicating if the proposal has been accepted
-     * @return yesVotes The number of "yes" votes received
-     * @return noVotes The number of "no" votes received
-     * @return abstainVotes The number of "abstain" votes received
-     * @return uniqueVotes The number of unique voters
-     * @return votingEndTime The end time of the voting period
-     */
-    function getProposal(
-        uint _proposalId
-    )
-        public
-        view
-        returns (
-            uint id,
-            string memory title,
-            string memory description,
-            address creator,
-            bool executed,
-            bool accepted,
-            uint yesVotes,
-            uint noVotes,
-            uint abstainVotes,
-            uint uniqueVotes,
-            uint votingEndTime
-        )
-    {
-        require(_proposalId < proposalCount, "No proposal exist for this id");
-        Proposal memory proposal = proposals[_proposalId];
-        return (
-            proposal.id,
-            proposal.title,
-            proposal.description,
-            proposal.creator,
-            proposal.executed,
-            proposal.accepted,
-            proposal.yesVotes,
-            proposal.noVotes,
-            proposal.abstainVotes,
-            proposal.uniqueVotes,
-            proposal.votingEndTime
-        );
-    }
-
-    /**
      * @dev Allows a token holder to vote on a proposal
      * @param _proposalId The ID of the proposal
      * @param _vote The vote ("yes", "no", or "abstain")
