@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity ^0.8.19;
 
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "./LIB.sol";
 import "./rLIB.sol";
 
 contract gProposal {
-    event NewProposal(uint indexed proposalId, string title, address indexed creator);
+    event NewProposal(
+        uint indexed proposalId,
+        string title,
+        address indexed creator
+    );
     event ProposalExecuted(uint indexed proposalId, bool indexed accepted);
     event Vote(uint indexed proposalId, address indexed voter);
     event BalancingExecuted(uint indexed balancingId, uint indexed floor);
@@ -33,6 +37,7 @@ contract gProposal {
     // Track created proposals & votes on them
     mapping(uint => Proposal) public proposals;
     mapping(address => mapping(uint => bool)) public voted;
+    mapping(address => mapping(uint => uint8)) public userVotes;
 
     struct Balancing {
         uint id;
@@ -56,6 +61,7 @@ contract gProposal {
         uint abstainVotes;
         uint uniqueVotes;
         uint votingEndTime;
+        uint256 snapshotBlock; // New field
     }
 
     constructor(address _libToken, address _rlibToken) {
@@ -84,15 +90,6 @@ contract gProposal {
 
     modifier onlyAdmin() {
         require(isAdmin(msg.sender));
-        _;
-    }
-
-    modifier hasEnoughDelegatedTokens() {
-        require(
-            rlibToken.getVotes(msg.sender) >=
-                balancing[balancingCount].epochFloor,
-            "Insufficient delegated rLIB tokens"
-        );
         _;
     }
 
@@ -129,38 +126,28 @@ contract gProposal {
      */
     function balanceFloor() external {
         require(
-            balancing[balancingCount].nextTimestamp < block.timestamp,
+            block.timestamp >= balancing[balancingCount].nextTimestamp,
             "Not time yet"
         );
+
+        (, int answer, , uint timeStamp, ) = dataFeed.latestRoundData();
+
+        uint nextPriceTarget = (balancing[balancingCount].epochPriceTarget *
+            1005) / 1000; // Simplified calculation
+        uint epochFloor = (nextPriceTarget * 1e18) / uint(answer);
+
         balancingCount++;
-        uint bc = balancingCount;
-
-        (
-            ,
-            /* uint80 roundID */ int answer,
-            ,
-            /* uint startedAt */ uint timeStamp,
-
-        ) = /* uint80 answeredInRound */
-            dataFeed.latestRoundData();
-
-        uint nextPriceTaget = balancing[bc - 1].epochPriceTarget +
-            balancing[bc - 1].epochPriceTarget /
-            2000;
-
-        uint epochFloor = ((nextPriceTaget * 10 ** 18) / uint(answer));
-
-        balancing[bc] = Balancing(
-            bc,
+        balancing[balancingCount] = Balancing(
+            balancingCount,
             block.number,
             answer,
             timeStamp,
             timeStamp + 7 days,
             epochFloor,
-            nextPriceTaget
+            nextPriceTarget
         );
 
-        emit BalancingExecuted(bc, epochFloor);
+        emit BalancingExecuted(balancingCount, epochFloor);
     }
 
     /**
@@ -171,154 +158,77 @@ contract gProposal {
     function createProposal(
         string calldata _title,
         string calldata _description
-    ) external hasEnoughDelegatedTokens {
+    ) external {
         require(
             bytes(_title).length > 0 && bytes(_description).length > 0,
             "Invalid proposal details"
         );
 
-        address sender = msg.sender;
-        uint pc = proposalCount;
+        uint256 requiredVotes = balancing[balancingCount].epochFloor;
+        uint256 availableVotes = rlibToken.getVotes(msg.sender) -
+            virtualPowerUsed[msg.sender][balancingCount];
 
-        deduceVirtualPower(sender);
+        require(availableVotes >= requiredVotes, "Insufficient VP");
 
-        proposals[pc] = Proposal(
-            pc,
+        virtualPowerUsed[msg.sender][balancingCount] += requiredVotes;
+
+        proposals[proposalCount++] = Proposal(
+            proposalCount,
             _title,
             _description,
-            sender,
+            msg.sender,
             false,
             false,
             0,
             0,
             0,
             0,
-            block.timestamp + 7 days
+            block.timestamp + 1 days, // replace to 7 days later
+            block.number // Set snapshot block
         );
-        proposalCount++;
 
-        emit NewProposal(pc - 1, _title, sender);
-    }
-
-    /**
-     * @dev Retrieves the details of a proposal
-     * @param _proposalId The ID of the proposal
-     * @return id The ID of the proposal
-     * @return title The title of the proposal
-     * @return description The description of the proposal
-     * @return creator The address of the creator of the proposal
-     * @return executed A boolean indicating if the proposal has been executed
-     * @return accepted A boolean indicating if the proposal has been accepted
-     * @return yesVotes The number of "yes" votes received
-     * @return noVotes The number of "no" votes received
-     * @return abstainVotes The number of "abstain" votes received
-     * @return uniqueVotes The number of unique voters
-     * @return votingEndTime The end time of the voting period
-     */
-    function getProposal(
-        uint _proposalId
-    )
-        public
-        view
-        returns (
-            uint id,
-            string memory title,
-            string memory description,
-            address creator,
-            bool executed,
-            bool accepted,
-            uint yesVotes,
-            uint noVotes,
-            uint abstainVotes,
-            uint uniqueVotes,
-            uint votingEndTime
-        )
-    {
-        require(_proposalId < proposalCount, "No proposal exist for this id");
-        Proposal memory proposal = proposals[_proposalId];
-        return (
-            proposal.id,
-            proposal.title,
-            proposal.description,
-            proposal.creator,
-            proposal.executed,
-            proposal.accepted,
-            proposal.yesVotes,
-            proposal.noVotes,
-            proposal.abstainVotes,
-            proposal.uniqueVotes,
-            proposal.votingEndTime
-        );
+        emit NewProposal(proposalCount - 1, _title, msg.sender);
     }
 
     /**
      * @dev Allows a token holder to vote on a proposal
      * @param _proposalId The ID of the proposal
-     * @param _vote The vote ("yes", "no", or "abstain")
+     * @param _vote The vote (0 for "yes", 1 for "no", 2 for "abstain")
      */
-    function vote(
-        uint _proposalId,
-        bytes32 _vote
-    ) external onlyDelegatee {
-        address sender = msg.sender;
-        require(
-            !voted[sender][_proposalId],
-            "Already voted for this proposal"
-        );
-
+    function vote(uint _proposalId, uint8 _vote) external onlyDelegatee {
         Proposal storage proposal = proposals[_proposalId];
-
-        if (block.timestamp >= proposal.votingEndTime) {
-            checkProposalOutcome(_proposalId);
-        }
-
         require(!proposal.executed, "Proposal already executed");
+        require(block.timestamp < proposal.votingEndTime, "Voting has ended");
+        require(_vote <= 2, "Invalid vote option");
 
-        uint votePower = libToken.getVotes(sender) +
-            rlibToken.getVotes(sender);
+        uint votePower = libToken.getPastVotes(
+            msg.sender,
+            proposal.snapshotBlock
+        ) + rlibToken.getPastVotes(msg.sender, proposal.snapshotBlock);
+        uint effectiveVotePower = votePower > maxPower ? maxPower : votePower;
+        uint surplusVotePower = votePower > maxPower ? votePower - maxPower : 0;
 
-        voted[sender][_proposalId] = true;
-        proposal.uniqueVotes++;
+        if (voted[msg.sender][_proposalId]) {
+            uint8 previousVote = userVotes[msg.sender][_proposalId];
+            if (previousVote == 0) proposal.yesVotes -= effectiveVotePower;
+            else if (previousVote == 1) proposal.noVotes -= effectiveVotePower;
+            else proposal.abstainVotes -= effectiveVotePower;
 
-        if (votePower > maxPower) {
-            if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("yes"))
-            ) {
-                proposal.yesVotes += maxPower;
-                proposal.abstainVotes += votePower - maxPower;
-            } else if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("no"))
-            ) {
-                proposal.noVotes += maxPower;
-                proposal.abstainVotes += votePower - maxPower;
-            } else if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("abstain"))
-            ) {
-                proposal.abstainVotes += votePower;
-            }
+            proposal.abstainVotes -= surplusVotePower;
         } else {
-            if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("yes"))
-            ) {
-                proposal.yesVotes += votePower;
-            } else if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("no"))
-            ) {
-                proposal.noVotes += votePower;
-            } else if (
-                keccak256(abi.encodePacked(_vote)) ==
-                keccak256(abi.encodePacked("abstain"))
-            ) {
-                proposal.abstainVotes += votePower;
-            }
+            proposal.uniqueVotes++;
         }
 
-        emit Vote(_proposalId, sender);
+        voted[msg.sender][_proposalId] = true;
+        userVotes[msg.sender][_proposalId] = _vote;
+
+        if (_vote == 0) proposal.yesVotes += effectiveVotePower;
+        else if (_vote == 1) proposal.noVotes += effectiveVotePower;
+        else proposal.abstainVotes += effectiveVotePower;
+
+        proposal.abstainVotes += surplusVotePower;
+
+        emit Vote(_proposalId, msg.sender);
     }
 
     /**
@@ -350,11 +260,15 @@ contract gProposal {
      */
     function checkProposalOutcome(uint _proposalId) private {
         Proposal storage proposal = proposals[_proposalId];
-        require(block.timestamp >= proposal.votingEndTime, "The proposal is still being voted");
+        require(
+            block.timestamp >= proposal.votingEndTime,
+            "The proposal is still being voted"
+        );
         uint totalVotes = proposal.yesVotes +
             proposal.noVotes +
             proposal.abstainVotes;
-
+            
+        proposal.executed = true;
         if (
             totalVotes >=
             (libThreshold * libToken.totalSupply()) /
@@ -363,14 +277,11 @@ contract gProposal {
                 100
         ) {
             if (proposal.yesVotes > (totalVotes - proposal.abstainVotes) / 2) {
-                proposal.executed = true;
                 proposal.accepted = true;
             } else {
-                proposal.executed = true;
                 proposal.accepted = false;
             }
         } else {
-            proposal.executed = true;
             proposal.accepted = false;
         }
 
@@ -378,9 +289,9 @@ contract gProposal {
     }
 
     /**
-    * @dev Checks the outcome of a proposal
-    * @param _proposalId The ID of the proposal
-    */
+     * @dev Checks the outcome of a proposal
+     * @param _proposalId The ID of the proposal
+     */
     function executeProposal(uint _proposalId) external {
         checkProposalOutcome(_proposalId);
     }
@@ -391,22 +302,10 @@ contract gProposal {
      */
     function nextAlterationTimeLeft() external view returns (uint) {
         Balancing memory alter = balancing[balancingCount];
-        return block.timestamp >= alter.nextTimestamp ? 0 : alter.nextTimestamp - block.timestamp;
-    }
-
-    /**
-     * @dev Deduce VP needed for creating a new proposal
-     * @param _address The address to deduce the VP
-     */
-    function deduceVirtualPower(address _address) private {
-        Balancing memory alter = balancing[balancingCount];
-        require(
-            rlibToken.getVotes(_address) -
-                virtualPowerUsed[_address][balancingCount] >=
-                alter.epochFloor,
-            "Not enough rLIB VP left"
-        );
-        virtualPowerUsed[_address][balancingCount] += alter.epochFloor;
+        return
+            block.timestamp >= alter.nextTimestamp
+                ? 0
+                : alter.nextTimestamp - block.timestamp;
     }
 
     /**

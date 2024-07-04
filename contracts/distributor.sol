@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity ^0.8.19;
 
 import "./LIB.sol";
 
@@ -59,7 +59,7 @@ contract Distributor {
     constructor(address _feeGeneratingToken) {
         feeGeneratingToken = Liblock(_feeGeneratingToken);
         admin = msg.sender;
-        nextDistributionTimestamp = block.timestamp + 600;
+        nextDistributionTimestamp = block.timestamp + 2 hours;
     }
 
     // admin related stuff
@@ -117,7 +117,7 @@ contract Distributor {
         totalUnclaimed += epochTotalAllowance[eh].epochClaimableToken;
 
         lastDistributionTimestamp = nextDistributionTimestamp;
-        nextDistributionTimestamp = lastDistributionTimestamp + 30 days;
+        nextDistributionTimestamp = lastDistributionTimestamp + 1 days; // replace later to 30 days
         epochHeight++;
 
         if (epochHeight != 0) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LIB.sol";
@@ -50,6 +50,19 @@ contract Liblocked {
         shareDistributionContract = Distributor(_shareDistributionContract);
         totalDepositedToken = 0;
         totalIssuedToken = 0;
+    }
+
+    /**
+    * @dev Lock tokens for 17 days - ratio of 1:1
+    * @param amount The amount of tokens to lock
+    */
+    function lockTest(uint amount) external {
+        address sender = msg.sender;
+        require(
+            amount <= depositToken.balanceOf(sender),
+            "Not enough tokens"
+        );
+        lockTokens(amount, 100, 1 days, sender);
     }
 
     /**

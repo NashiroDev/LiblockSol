@@ -79,26 +79,6 @@ async function main() {
     await tx.wait();
     console.log(`Transferred 60 tokens to ${address}`);
   }
-
-  const approveAmount = ethers.utils.parseEther("1000");
-  const lock17Amount = ethers.utils.parseEther("400");
-  const lock186Amount = ethers.utils.parseEther("600");
-
-  await liblockWithSigner.approve(stacking.address, approveAmount);
-  console.log(`Approved ${approveAmount} tokens for stacking contract`);
-
-  const stackingWithSigner = await Stacking.attach(stacking.address).connect(ethers.provider.getSigner());
-  await stackingWithSigner.lock17(lock17Amount);
-  await stackingWithSigner.lock186(lock186Amount);
-  console.log(`Locked 400 tokens for 17 days and 600 tokens for 186 days`);
-
-  try {
-    const proposalWithSigner = await gProposal.attach(proposal.address).connect(ethers.provider.getSigner());
-    await proposalWithSigner.createProposal("First test prop", "Mock text for testing purposes");
-    console.log("Proposal created successfully");
-  } catch (error) {
-    console.error("Error creating proposal:", error.message);
-  }
 }
 
 main()
