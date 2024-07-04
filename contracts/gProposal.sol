@@ -37,6 +37,7 @@ contract gProposal {
     // Track created proposals & votes on them
     mapping(uint => Proposal) public proposals;
     mapping(address => mapping(uint => bool)) public voted;
+    mapping(address => mapping(uint => uint8)) public userVotes;
 
     struct Balancing {
         uint id;
@@ -195,32 +196,38 @@ contract gProposal {
      * @param _vote The vote (0 for "yes", 1 for "no", 2 for "abstain")
      */
     function vote(uint _proposalId, uint8 _vote) external onlyDelegatee {
-        require(!voted[msg.sender][_proposalId], "Already voted");
         Proposal storage proposal = proposals[_proposalId];
         require(!proposal.executed, "Proposal already executed");
-        if (block.timestamp >= proposal.votingEndTime) {
-            checkProposalOutcome(_proposalId);
-            require(!proposal.executed, "Proposal already executed");
-        }
+        require(block.timestamp < proposal.votingEndTime, "Voting has ended");
+        require(_vote <= 2, "Invalid vote option");
+
         uint votePower = libToken.getPastVotes(
             msg.sender,
             proposal.snapshotBlock
         ) + rlibToken.getPastVotes(msg.sender, proposal.snapshotBlock);
-        voted[msg.sender][_proposalId] = true;
-        proposal.uniqueVotes++;
-        if (votePower > maxPower) {
-            proposal.abstainVotes += votePower - maxPower;
-            votePower = maxPower;
-        }
-        if (_vote == 0) {
-            proposal.yesVotes += votePower;
-        } else if (_vote == 1) {
-            proposal.noVotes += votePower;
-        } else if (_vote == 2) {
-            proposal.abstainVotes += votePower;
+        uint effectiveVotePower = votePower > maxPower ? maxPower : votePower;
+        uint surplusVotePower = votePower > maxPower ? votePower - maxPower : 0;
+
+        if (voted[msg.sender][_proposalId]) {
+            uint8 previousVote = userVotes[msg.sender][_proposalId];
+            if (previousVote == 0) proposal.yesVotes -= effectiveVotePower;
+            else if (previousVote == 1) proposal.noVotes -= effectiveVotePower;
+            else proposal.abstainVotes -= effectiveVotePower;
+
+            proposal.abstainVotes -= surplusVotePower;
         } else {
-            revert("Invalid vote option");
+            proposal.uniqueVotes++;
         }
+
+        voted[msg.sender][_proposalId] = true;
+        userVotes[msg.sender][_proposalId] = _vote;
+
+        if (_vote == 0) proposal.yesVotes += effectiveVotePower;
+        else if (_vote == 1) proposal.noVotes += effectiveVotePower;
+        else proposal.abstainVotes += effectiveVotePower;
+
+        proposal.abstainVotes += surplusVotePower;
+
         emit Vote(_proposalId, msg.sender);
     }
 
